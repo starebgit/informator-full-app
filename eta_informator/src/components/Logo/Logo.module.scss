@@ -1,0 +1,19 @@
+.Logo,
+.Favi {
+    padding: 8px;
+
+    opacity: 1;
+}
+
+.Logo img,
+.Favi img {
+    height: 100%;
+}
+
+@media only screen and (max-width: 600px) {
+    .Logo {
+        opacity: 0;
+        transition: all 0.3s ease-in-out;
+        display: none;
+    }
+}

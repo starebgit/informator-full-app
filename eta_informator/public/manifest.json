@@ -1,0 +1,25 @@
+{
+    "short_name": "Informator",
+    "name": "ETA Informator",
+    "icons": [
+        {
+            "src": "eta_favi_white_80.png",
+            "sizes": "80x80",
+            "type": "image/png"
+        },
+        {
+            "src": "eta_favi_white_80.png",
+            "type": "image/png",
+            "sizes": "80x80"
+        },
+        {
+            "src": "eta_favi_green_80.png",
+            "type": "image/png",
+            "sizes": "80x80"
+        }
+    ],
+    "start_url": ".",
+    "display": "standalone",
+    "theme_color": "#000000",
+    "background_color": "#ffffff"
+}

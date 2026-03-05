@@ -1,0 +1,14 @@
+/* :global .collapsing{
+    transition: none !important;
+} */
+
+.Dropdown {
+    margin-top: 0.25rem;
+    margin-left: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.DropdownToggle {
+    padding: 0 !important;
+}

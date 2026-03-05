@@ -1,0 +1,30 @@
+image: node:18 # Uporaba node 18.x slike
+
+pipelines:
+  pull-requests:
+    "production": # Ko je narejen pull request iz development na production
+      - step:
+          name: Deploy to Production
+          caches:
+            - node
+          script:
+            - echo "Starting deployment to production server"
+            # Namestitev NPM 6
+            - npm install -g npm@6
+            # Namestitev odvisnosti
+            - npm ci
+            # Ustvari .env datoteko
+            - rm -f ./.env
+            - touch .env
+            - echo "${ENV_FILE_PRODUCTION}" >> .env
+            # Gradnja projekta
+            - CI=false npm run build --if-present
+            # Odstrani stare datoteke na produkcijskem strežniku
+            - ssh peterneljz@172.20.1.40 "rm -r -f /home/webserver/production/informator/*"
+            # Prenos novih datotek na produkcijski strežnik
+            - scp -r build/* peterneljz@172.20.1.40:/home/webserver/production/informator/
+            - echo "Deployment complete"
+
+definitions:
+  caches:
+    node: ~/.npm  # Uporabimo predpomnilnik za npm odvisnosti

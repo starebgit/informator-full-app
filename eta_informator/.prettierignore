@@ -1,0 +1,10 @@
+.github
+build
+coverage
+README.md
+
+**/*.html
+**/.git
+**/.svn
+**/.hg
+**/node_modules

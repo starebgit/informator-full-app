@@ -1,0 +1,131 @@
+.Stat {
+    padding: 18px 28px;
+    font-family: "Nunito", sans-serif;
+    box-shadow: 0 0 5px rgba(#000, 0.25);
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    min-height: 180px;
+    justify-content: center;
+    margin-bottom: 10px;
+    margin-top: 10px;
+    background: var(--bs-cyan);
+    color: white;
+}
+
+.StatContent {
+    display: flex;
+    margin-top: auto;
+    align-items: flex-end;
+    justify-content: flex-end;
+    flex-direction: column;
+    text-align: end;
+    padding-left: unset;
+}
+
+.StatTitle {
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.StatIcon {
+    display: flex;
+    align-items: flex-end;
+    font-size: 20px;
+}
+
+.StatData {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-left: auto;
+}
+
+.StatNumber {
+    font-size: 33px;
+    line-height: 33px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.StatChange {
+    margin-top: 5px;
+}
+
+.StatPercentage {
+    opacity: 1;
+}
+
+.StatTimeframe {
+    opacity: 0.5;
+}
+
+.StatNorm {
+    margin-bottom: 0;
+    font-weight: 600;
+}
+
+.StatNormText {
+    opacity: 0.5;
+    white-space: nowrap; /* Prevents line breaks */
+    overflow: hidden; /* Hides overflow if it's too long */
+}
+
+.StatGreen {
+    background: rgb(1, 181, 52);
+    background: linear-gradient(15deg, rgb(12, 157, 53) 0%, rgb(4, 213, 56) 100%);
+    color: white;
+}
+
+.StatRed {
+    background: rgb(181, 1, 89);
+    background: linear-gradient(29deg, rgba(181, 1, 89, 1) 0%, rgba(251, 0, 34, 1) 100%);
+    color: #fff;
+}
+
+.StatOrange {
+    background: rgb(255, 124, 0);
+    background: linear-gradient(45deg, rgba(255, 124, 0, 1) 0%, rgba(255, 206, 0, 1) 100%);
+}
+
+.StatGraph {
+    display: flex;
+    align-items: flex-end;
+    min-width: 100px;
+    min-height: 125px;
+    max-height: 250px;
+}
+
+@media only screen and (max-width: 576px) {
+    .StatGraph {
+        margin-bottom: 0.5rem;
+    }
+}
+.normValueOrange,
+.normValueGreen,
+.normValueRed {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #28a745;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: inherit;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.normValueRed {
+    background-color: #dc3545;
+}
+.normValueOrange {
+    background-color: #ff9800;
+}
+
+.normIcon {
+    margin-right: 4px;
+    font-weight: bold;
+}
