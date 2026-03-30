@@ -12,6 +12,7 @@ import {
 import { Fragment } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useTranslation } from "react-i18next";
+import { getTedQueryList } from "../../../utils/shopfloor/ted";
 import Select from "../../../components/Forms/CustomInputs/Select/Select";
 import client, { sinaproClient } from "../../../feathers/feathers";
 import { generateMachinesLabels } from "../../../data/Formaters/Informator";
@@ -91,14 +92,23 @@ function Quality({
 
     const sinaproData = useQuery(
         ["production", selectedMonth.format("MM-YYYY"), selectedUnit.ted],
-        () => {
-            return sinaproClient.service("machine-production").find({
-                query: {
-                    start: selectedMonth.startOf("month").format("YYYY-MM-DD"),
-                    end: selectedMonth.endOf("month").format("YYYY-MM-DD"),
-                    ted: selectedUnit.ted + "",
-                },
-            });
+        async () => {
+            const tedIds = getTedQueryList(selectedUnit.ted);
+            const responses = await Promise.all(
+                tedIds.map((tedId) =>
+                    sinaproClient.service("machine-production").find({
+                        query: {
+                            start: selectedMonth.startOf("month").format("YYYY-MM-DD"),
+                            end: selectedMonth.endOf("month").format("YYYY-MM-DD"),
+                            ted: tedId + "",
+                        },
+                    }),
+                ),
+            );
+
+            return {
+                data: responses.flatMap((response) => response.data),
+            };
         },
     );
 

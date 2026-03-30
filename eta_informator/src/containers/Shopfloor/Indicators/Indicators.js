@@ -14,6 +14,7 @@ import worker from "../../../workers/workerFetcher";
 import { useMachineGroups } from "../../../data/ReactQuery";
 import { useFoundryForms } from "../../../data/ReactQuery";
 import SfmBoard from "./SfmBoard";
+import { getTedQueryList } from "../../../utils/shopfloor/ted";
 
 // const imageSource = new URL(`http://${process.env.REACT_APP_INFORMATOR}/`);
 
