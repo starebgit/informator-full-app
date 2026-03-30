@@ -14,6 +14,7 @@ import worker from "../../../workers/workerFetcher";
 import { useMachineGroups } from "../../../data/ReactQuery";
 import { useFoundryForms } from "../../../data/ReactQuery";
 import SfmBoard from "./SfmBoard";
+import { getTedQueryList } from "../../../utils/shopfloor/ted";
 
 // const imageSource = new URL(`http://${process.env.REACT_APP_INFORMATOR}/`);
 
@@ -91,15 +92,24 @@ function Indicators(props) {
 
     const sinaproData = useQuery(
         ["production", "YTD", props.selectedUnit.ted],
-        () => {
-            return sinaproClient.service("machine-production").find({
-                query: {
-                    start: startDay.format("YYYY-MM-DD"),
-                    end: endDay.format("YYYY-MM-DD"),
-                    ted: props.selectedUnit.ted + "",
-                    $limit: 10000,
-                },
-            });
+        async () => {
+            const tedIds = getTedQueryList(props.selectedUnit.ted);
+            const responses = await Promise.all(
+                tedIds.map((tedId) =>
+                    sinaproClient.service("machine-production").find({
+                        query: {
+                            start: startDay.format("YYYY-MM-DD"),
+                            end: endDay.format("YYYY-MM-DD"),
+                            ted: tedId + "",
+                            $limit: 10000,
+                        },
+                    }),
+                ),
+            );
+
+            return {
+                data: responses.flatMap((response) => response.data),
+            };
         },
         { enabled: !!props.selectedUnit?.ted },
     );
@@ -470,15 +480,23 @@ function Indicators(props) {
 
     const { data: qualityData } = useQuery(
         ["sinapro-quality", "YTD", props.selectedUnit?.ted],
-        () =>
-            sinaproClient.service("machine-production").find({
-                query: {
-                    ted: props.selectedUnit?.ted + "",
-                    start: startDay.format("YYYY-MM-DD"),
-                    end: endDay.format("YYYY-MM-DD"),
-                    $limit: 10000,
-                },
-            }),
+        async () => {
+            const tedIds = getTedQueryList(props.selectedUnit?.ted);
+            const responses = await Promise.all(
+                tedIds.map((tedId) =>
+                    sinaproClient.service("machine-production").find({
+                        query: {
+                            ted: tedId + "",
+                            start: startDay.format("YYYY-MM-DD"),
+                            end: endDay.format("YYYY-MM-DD"),
+                            $limit: 10000,
+                        },
+                    }),
+                ),
+            );
+
+            return responses.flatMap((response) => response.data);
+        },
         {
             enabled: !!props.selectedUnit?.ted && props.selectedUnit?.subunitId !== 11, // ⛔ Disable for Livarna
         },
