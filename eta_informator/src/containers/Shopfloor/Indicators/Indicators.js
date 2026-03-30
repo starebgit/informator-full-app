@@ -92,14 +92,17 @@ function Indicators(props) {
     const sinaproData = useQuery(
         ["production", "YTD", props.selectedUnit.ted],
         () => {
-            return sinaproClient.service("machine-production").find({
-                query: {
-                    start: startDay.format("YYYY-MM-DD"),
-                    end: endDay.format("YYYY-MM-DD"),
-                    ted: props.selectedUnit.ted + "",
-                    $limit: 10000,
-                },
-            });
+            return sinaproClient
+                .service("machine-production")
+                .find({
+                    query: {
+                        start: startDay.format("YYYY-MM-DD"),
+                        end: endDay.format("YYYY-MM-DD"),
+                        ted: props.selectedUnit.ted + "",
+                        $limit: 10000,
+                    },
+                })
+                .then((response) => response.data);
         },
         { enabled: !!props.selectedUnit?.ted },
     );
@@ -471,14 +474,17 @@ function Indicators(props) {
     const { data: qualityData } = useQuery(
         ["sinapro-quality", "YTD", props.selectedUnit?.ted],
         () =>
-            sinaproClient.service("machine-production").find({
-                query: {
-                    ted: props.selectedUnit?.ted + "",
-                    start: startDay.format("YYYY-MM-DD"),
-                    end: endDay.format("YYYY-MM-DD"),
-                    $limit: 10000,
-                },
-            }),
+            sinaproClient
+                .service("machine-production")
+                .find({
+                    query: {
+                        ted: props.selectedUnit?.ted + "",
+                        start: startDay.format("YYYY-MM-DD"),
+                        end: endDay.format("YYYY-MM-DD"),
+                        $limit: 10000,
+                    },
+                })
+                .then((response) => response.data),
         {
             enabled: !!props.selectedUnit?.ted && props.selectedUnit?.subunitId !== 11, // ⛔ Disable for Livarna
         },
