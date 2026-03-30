@@ -8,6 +8,7 @@ import {
     generateKeywordsLabels,
 } from "../../Formaters/Informator";
 import { getAllEmployees, getEmployees } from "../Spica/SpicaAPI";
+import { getTedQueryList } from "../../../utils/shopfloor/ted";
 
 /**
  * @returns Promise with unit data
@@ -129,7 +130,7 @@ export function getStaff(subunitId, startDate, endDate) {
     );
 }
 
-export function getMachines(ted) {
+export async function getMachines(ted) {
     if (!ted)
         return sinaproClient
             .service("ted")
@@ -138,13 +139,24 @@ export function getMachines(ted) {
                 const { data } = response;
                 return data;
             });
-    return sinaproClient
-        .service("ted")
-        .find({ query: { tedId: ted + "", active: 1, companyId: 1060 } })
-        .then((response) => {
-            const { data } = response;
-            return data;
+
+    const tedIds = getTedQueryList(ted);
+    const responses = await Promise.all(
+        tedIds.map((tedId) =>
+            sinaproClient
+                .service("ted")
+                .find({ query: { tedId: tedId + "", active: 1, companyId: 1060 } }),
+        ),
+    );
+
+    const byAltId = new Map();
+    responses.forEach((response) => {
+        response.data.forEach((machine) => {
+            byAltId.set(machine.idAlt, machine);
         });
+    });
+
+    return Array.from(byAltId.values());
 }
 
 export function getMachinesAll() {
