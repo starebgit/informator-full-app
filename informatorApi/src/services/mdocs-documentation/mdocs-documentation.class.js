@@ -1,5 +1,4 @@
-const { errors } = require('@feathersjs/errors');
-const axios = require('axios');
+const errors = require('@feathersjs/errors');const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
 const path = require('path'); // <-- added
@@ -28,61 +27,83 @@ exports.MdocsDocumentation = class MdocsDocumentation {
   }
 
   async find(params) {
-    let session; // <-- added
-
+    let session;
+  
     try {
-      //Login
-      const loginRes = await this.instance.post(this.options.url + '/user/login', {
-        ...this.options.auth
-      });
-
+      // 1) LOGIN
+      let loginRes;
+      try {
+        loginRes = await this.instance.post(this.options.url + '/user/login', {
+          ...this.options.auth
+        });
+      } catch (err) {
+        console.error('[MDOCS LOGIN FAILED]', {
+          url: err?.config?.url,
+          method: err?.config?.method,
+          status: err?.response?.status,
+          code: err?.code,
+          message: err?.message,
+          response: err?.response?.data
+        });
+        throw new errors.Unavailable(
+          `MDOCS login failed: ${err?.response?.status ? 'HTTP ' + err.response.status : (err?.code || err?.message)}`
+        );
+      }
+  
       session = loginRes.data?.session;
       if (!session) {
+        console.error('[MDOCS LOGIN NO SESSION]', loginRes.data);
         throw new errors.Unavailable('MDOCS login returned no session');
       }
-
-      const headers = {
-        sessionId: session
-      };
-
-      const reportRes = await this.instance.post(
-        this.options.url + '/file/report2',
-        {
-          filetypes: ['IsoDocument'],
-          columns: ['Id', '%title%'],
-          filter: "AuditState='valid'"
-        },
-        {
-          headers
-        }
-      );
-
+  
+      const headers = { sessionId: session };
+  
+      // 2) REPORT2
+      let reportRes;
+      try {
+        reportRes = await this.instance.post(
+          this.options.url + '/file/report2',
+          {
+            filetypes: ['IsoDocument'],
+            columns: ['Id', '%title%'],
+            filter: "AuditState='valid'"
+          },
+          { headers }
+        );
+      } catch (err) {
+        console.error('[MDOCS REPORT2 FAILED]', {
+          url: err?.config?.url,
+          method: err?.config?.method,
+          status: err?.response?.status,
+          code: err?.code,
+          message: err?.message,
+          request: err?.config?.data,      // what we sent
+          response: err?.response?.data    // what MDOCS returned (this is what we need)
+        });
+  
+        // don't let logout failure crash anything
+        this.logout(session).catch(() => {});
+  
+        throw new errors.Unavailable(
+          `MDOCS report2 failed: ${err?.response?.status ? 'HTTP ' + err.response.status : (err?.code || err?.message)}`
+        );
+      }
+  
       const report = reportRes.data?.report;
-
+  
       if (!report) {
+        console.error('[MDOCS REPORT2 NO REPORT]', reportRes.data);
         throw new errors.NotFound('No data found');
       }
-
+  
       return {
         count: report.rows,
-        data: report.hits.map((row) => {
-          return {
-            id: row.columns[0],
-            title: row.columns[1]
-          };
-        })
+        data: report.hits.map((row) => ({
+          id: row.columns[0],
+          title: row.columns[1]
+        }))
       };
-    } catch (err) {
-      // <-- changed: surface real error fast
-      const status = err?.response?.status;
-      const detail =
-        status ? `HTTP ${status}` :
-        err?.code ? err.code :
-        err?.message || 'Unknown error';
-
-      throw new errors.Unavailable(`MDOCS find() failed: ${detail}`);
     } finally {
-      // <-- changed: logout never blocks response
       await this.logout(session);
     }
   }
