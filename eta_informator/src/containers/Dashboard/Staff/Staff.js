@@ -88,8 +88,16 @@ function Staff({
             selector: "sick",
         },
         {
+            name: t("partial_sick"),
+            selector: "partial_sick",
+        },
+        {
             name: t("hour_use"),
             selector: "hour_use",
+        },
+        {
+            name: t("partial_hour_use"),
+            selector: "partial_hour_use",
         },
         {
             name: t("waiting"),
