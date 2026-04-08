@@ -31,6 +31,11 @@ export default function getNavigation(path, selectedUnit) {
                 path: `${path}/${selectedUnit?.keyword}/lean`,
                 notification: 0,
             },
+            stock: {
+                title: "stock",
+                path: `${path}/${selectedUnit?.keyword}/stock`,
+                notification: 0,
+            },
             attachments: {
                 title: "attachments",
                 path: `${path}/${selectedUnit?.keyword}/attachments`,
@@ -57,6 +62,11 @@ export default function getNavigation(path, selectedUnit) {
             quality: {
                 title: "quality",
                 path: `${path}/${selectedUnit?.keyword}/quality`,
+                notification: 0,
+            },
+            stock: {
+                title: "stock",
+                path: `${path}/${selectedUnit?.keyword}/stock`,
                 notification: 0,
             },
             staff: {
@@ -174,6 +184,11 @@ export default function getNavigation(path, selectedUnit) {
         quality: {
             title: "quality",
             path: `${path}/${selectedUnit?.keyword}/quality`,
+            notification: 0,
+        },
+        stock: {
+            title: "stock",
+            path: `${path}/${selectedUnit?.keyword}/stock`,
             notification: 0,
         },
         oee: {
