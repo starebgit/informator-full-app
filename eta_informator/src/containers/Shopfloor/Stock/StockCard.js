@@ -1,4 +1,3 @@
-import styled from "styled-components";
 import {
     useCasts,
     useClips,
@@ -151,7 +150,7 @@ function buildCardHeader(stockCategory, searchMeta, t) {
 
     if (searchMeta.mode === "contains") {
         const containsLabel = searchMeta.query
-            ? `**${searchMeta.query}**`
+            ? `${fallbackLabel}: "${searchMeta.query}"`
             : searchMeta.exactText || fallbackLabel;
 
         return {
@@ -168,10 +167,13 @@ function buildCardHeader(stockCategory, searchMeta, t) {
 
 function DataTransform(stockCategory, data, t) {
     if (!data) return null;
+    if (isSnapshotPayload(data)) {
+        return transformSnapshotData(stockCategory, data, t);
+    }
     switch (stockCategory) {
         case "protectors":
             return data
-                .filter((entry) => entry.title.includes("PROTEKTOR"))
+                .filter((entry) => entry?.title?.includes("PROTEKTOR"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -203,7 +205,7 @@ function DataTransform(stockCategory, data, t) {
                 );
         case "spirals":
             return data
-                .filter((entry) => entry.title.includes("SPIRALA"))
+                .filter((entry) => entry?.title?.includes("SPIRALA"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -238,7 +240,7 @@ function DataTransform(stockCategory, data, t) {
 
         case "clips":
             return data
-                .filter((entry) => entry.title.includes("SPONKA SESTAV"))
+                .filter((entry) => entry?.title?.includes("SPONKA SESTAV"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -302,7 +304,7 @@ function DataTransform(stockCategory, data, t) {
                 );
         case "rings":
             return data
-                .filter((entry) => entry.title.includes("OBROČ"))
+                .filter((entry) => entry?.title?.includes("OBROČ"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -332,7 +334,7 @@ function DataTransform(stockCategory, data, t) {
                 );
         case "fireclays":
             return data
-                .filter((entry) => entry.title.includes("EGO"))
+                .filter((entry) => entry?.title?.includes("EGO"))
                 .reduce(
                     (acc, cur) => {
                         const { title, furnace, stock, plan, difference, differenceFurnace } = cur;
@@ -381,6 +383,64 @@ function DataTransform(stockCategory, data, t) {
         default:
             return null;
     }
+}
+
+function isSnapshotPayload(data) {
+    if (!Array.isArray(data) || data.length === 0) return false;
+    return data.some(
+        (entry) =>
+            entry?.Total !== undefined ||
+            entry?.total !== undefined ||
+            entry?.PlannedTotal !== undefined ||
+            entry?.plannedTotal !== undefined,
+    );
+}
+
+function transformSnapshotData(stockCategory, data, t) {
+    const rows = data.map((entry) => {
+        const query = entry?.query || entry?.Query || "";
+        const exactText = entry?.exactText || entry?.ExactText || "";
+        const label = exactText || query || t(stockCategory);
+        const stock = Number(entry?.total ?? entry?.Total ?? 0);
+        const plan = Number(entry?.plannedTotal ?? entry?.PlannedTotal ?? 0);
+        const difference = Number(
+            entry?.plannedMinusDeliveredTotal ?? entry?.PlannedMinusDeliveredTotal ?? 0,
+        );
+        const furnace = Number(entry?.deliveredTotal ?? entry?.DeliveredTotal ?? 0);
+
+        return {
+            category: label,
+            diameter: label,
+            stock,
+            plan,
+            difference,
+            furnace,
+            differenceFurnace: difference - stock,
+        };
+    });
+
+    const sumRow = rows.reduce(
+        (acc, cur) => ({
+            category: "Σ",
+            diameter: "Σ",
+            stock: acc.stock + cur.stock,
+            plan: acc.plan + cur.plan,
+            difference: acc.difference + cur.difference,
+            furnace: acc.furnace + cur.furnace,
+            differenceFurnace: acc.differenceFurnace + cur.differenceFurnace,
+        }),
+        {
+            category: "Σ",
+            diameter: "Σ",
+            stock: 0,
+            plan: 0,
+            difference: 0,
+            furnace: 0,
+            differenceFurnace: 0,
+        },
+    );
+
+    return [...rows, sumRow];
 }
 
 const productCategories = {
