@@ -290,7 +290,9 @@
         "audit_id": "Prüfungs-ID",
         "approving_party_comments": "Kommentare der genehmigenden Stelle",
         "audit_description": "Prüfungsbeschreibung",
-        "approving_party": "Genehmigende Person"
+        "approving_party": "Genehmigende Person",
+        "exact_mode": "Exakt",
+        "contains_mode": "Enthält"
     },
     "navigation": {
         "documentation": "Dokumentation",
