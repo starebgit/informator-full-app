@@ -290,7 +290,9 @@
         "audit_id": "ID presoje",
         "approving_party": "Odobritvena oseba",
         "approving_party_comments": "Komentarji odobritvene osebe",
-        "audit_description": "Opis presoje"
+        "audit_description": "Opis presoje",
+        "exact_mode": "Točno",
+        "contains_mode": "Vsebuje"
     },
     "navigation": {
         "documentation": "Dokumentacija",

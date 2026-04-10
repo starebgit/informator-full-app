@@ -290,7 +290,9 @@
         "audit_id": "Audit ID",
         "approving_party_comments": "Approving party comments",
         "audit_description": "Audit description",
-        "approving_party": "Approving party"
+        "approving_party": "Approving party",
+        "exact_mode": "Exact",
+        "contains_mode": "Contains"
     },
     "navigation": {
         "documentation": "Documentation",

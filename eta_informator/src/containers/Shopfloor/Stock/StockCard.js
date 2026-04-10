@@ -1,4 +1,3 @@
-import styled from "styled-components";
 import {
     useCasts,
     useClips,
@@ -32,6 +31,8 @@ const conditionalRowStyles = [
 export default function StockCard({ stockCategory }) {
     const { t } = useTranslation("shopfloor");
     const { data, isLoading, isError, status } = DataSource[stockCategory]();
+    const searchMeta = resolveSearchMeta(data);
+    const cardHeader = buildCardHeader(stockCategory, searchMeta, t);
 
     const columns = [
         {
@@ -95,7 +96,12 @@ export default function StockCard({ stockCategory }) {
                     background: "linear-gradient(30deg, #cedeeb, #eef2f3)",
                 }}
             >
-                <h3>{t(stockCategory)}</h3>
+                <h3 className='mb-2'>
+                    {cardHeader.label}
+                    {cardHeader.mode ? (
+                        <span className='ms-2 fs-6 fw-normal text-muted'>({cardHeader.mode})</span>
+                    ) : null}
+                </h3>
                 <div className='rounded'>
                     <DataTable
                         className=''
@@ -111,12 +117,63 @@ export default function StockCard({ stockCategory }) {
     );
 }
 
+function resolveSearchMeta(data) {
+    if (!Array.isArray(data) || !data.length) return null;
+
+    const firstEntryWithSearchMode = data.find((entry) => {
+        const mode = entry?.searchMode || entry?.SearchMode;
+        return typeof mode === "string" && mode.length > 0;
+    });
+
+    if (!firstEntryWithSearchMode) return null;
+
+    return {
+        mode: (firstEntryWithSearchMode.searchMode || firstEntryWithSearchMode.SearchMode || "")
+            .toLowerCase()
+            .trim(),
+        query: firstEntryWithSearchMode.query || firstEntryWithSearchMode.Query || "",
+        exactText:
+            firstEntryWithSearchMode.exactText || firstEntryWithSearchMode.ExactText || "",
+    };
+}
+
+function buildCardHeader(stockCategory, searchMeta, t) {
+    const fallbackLabel = t(stockCategory);
+    if (!searchMeta) return { label: fallbackLabel, mode: null };
+
+    if (searchMeta.mode === "exact") {
+        return {
+            label: searchMeta.exactText || searchMeta.query || fallbackLabel,
+            mode: t("exact_mode", "exact"),
+        };
+    }
+
+    if (searchMeta.mode === "contains") {
+        const containsLabel = searchMeta.query
+            ? `${fallbackLabel}: "${searchMeta.query}"`
+            : searchMeta.exactText || fallbackLabel;
+
+        return {
+            label: containsLabel,
+            mode: t("contains_mode", "contains"),
+        };
+    }
+
+    return {
+        label: searchMeta.query || searchMeta.exactText || fallbackLabel,
+        mode: searchMeta.mode,
+    };
+}
+
 function DataTransform(stockCategory, data, t) {
     if (!data) return null;
+    if (isSnapshotPayload(data)) {
+        return transformSnapshotData(stockCategory, data, t);
+    }
     switch (stockCategory) {
         case "protectors":
             return data
-                .filter((entry) => entry.title.includes("PROTEKTOR"))
+                .filter((entry) => entry?.title?.includes("PROTEKTOR"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -148,7 +205,7 @@ function DataTransform(stockCategory, data, t) {
                 );
         case "spirals":
             return data
-                .filter((entry) => entry.title.includes("SPIRALA"))
+                .filter((entry) => entry?.title?.includes("SPIRALA"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -183,7 +240,7 @@ function DataTransform(stockCategory, data, t) {
 
         case "clips":
             return data
-                .filter((entry) => entry.title.includes("SPONKA SESTAV"))
+                .filter((entry) => entry?.title?.includes("SPONKA SESTAV"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -247,7 +304,7 @@ function DataTransform(stockCategory, data, t) {
                 );
         case "rings":
             return data
-                .filter((entry) => entry.title.includes("OBROČ"))
+                .filter((entry) => entry?.title?.includes("OBROČ"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -277,7 +334,7 @@ function DataTransform(stockCategory, data, t) {
                 );
         case "fireclays":
             return data
-                .filter((entry) => entry.title.includes("EGO"))
+                .filter((entry) => entry?.title?.includes("EGO"))
                 .reduce(
                     (acc, cur) => {
                         const { title, furnace, stock, plan, difference, differenceFurnace } = cur;
@@ -326,6 +383,64 @@ function DataTransform(stockCategory, data, t) {
         default:
             return null;
     }
+}
+
+function isSnapshotPayload(data) {
+    if (!Array.isArray(data) || data.length === 0) return false;
+    return data.some(
+        (entry) =>
+            entry?.Total !== undefined ||
+            entry?.total !== undefined ||
+            entry?.PlannedTotal !== undefined ||
+            entry?.plannedTotal !== undefined,
+    );
+}
+
+function transformSnapshotData(stockCategory, data, t) {
+    const rows = data.map((entry) => {
+        const query = entry?.query || entry?.Query || "";
+        const exactText = entry?.exactText || entry?.ExactText || "";
+        const label = exactText || query || t(stockCategory);
+        const stock = Number(entry?.total ?? entry?.Total ?? 0);
+        const plan = Number(entry?.plannedTotal ?? entry?.PlannedTotal ?? 0);
+        const difference = Number(
+            entry?.plannedMinusDeliveredTotal ?? entry?.PlannedMinusDeliveredTotal ?? 0,
+        );
+        const furnace = Number(entry?.deliveredTotal ?? entry?.DeliveredTotal ?? 0);
+
+        return {
+            category: label,
+            diameter: label,
+            stock,
+            plan,
+            difference,
+            furnace,
+            differenceFurnace: difference - stock,
+        };
+    });
+
+    const sumRow = rows.reduce(
+        (acc, cur) => ({
+            category: "Σ",
+            diameter: "Σ",
+            stock: acc.stock + cur.stock,
+            plan: acc.plan + cur.plan,
+            difference: acc.difference + cur.difference,
+            furnace: acc.furnace + cur.furnace,
+            differenceFurnace: acc.differenceFurnace + cur.differenceFurnace,
+        }),
+        {
+            category: "Σ",
+            diameter: "Σ",
+            stock: 0,
+            plan: 0,
+            difference: 0,
+            furnace: 0,
+            differenceFurnace: 0,
+        },
+    );
+
+    return [...rows, sumRow];
 }
 
 const productCategories = {
