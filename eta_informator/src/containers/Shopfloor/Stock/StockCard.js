@@ -1,4 +1,3 @@
-import styled from "styled-components";
 import {
     useCasts,
     useClips,
@@ -31,7 +30,7 @@ const conditionalRowStyles = [
 
 export default function StockCard({ stockCategory }) {
     const { t } = useTranslation("shopfloor");
-    const { data, isLoading, isError, status } = DataSource[stockCategory]();
+    const { data } = DataSource[stockCategory]();
 
     const columns = [
         {
