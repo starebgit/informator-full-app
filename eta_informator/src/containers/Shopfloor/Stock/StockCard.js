@@ -1,4 +1,3 @@
-import styled from "styled-components";
 import {
     useCasts,
     useClips,
@@ -32,6 +31,8 @@ const conditionalRowStyles = [
 export default function StockCard({ stockCategory }) {
     const { t } = useTranslation("shopfloor");
     const { data, isLoading, isError, status } = DataSource[stockCategory]();
+    const searchMeta = resolveSearchMeta(data);
+    const cardHeader = buildCardHeader(stockCategory, searchMeta, t);
 
     const columns = [
         {
@@ -95,7 +96,12 @@ export default function StockCard({ stockCategory }) {
                     background: "linear-gradient(30deg, #cedeeb, #eef2f3)",
                 }}
             >
-                <h3>{t(stockCategory)}</h3>
+                <h3 className='mb-2'>
+                    {cardHeader.label}
+                    {cardHeader.mode ? (
+                        <span className='ms-2 fs-6 fw-normal text-muted'>({cardHeader.mode})</span>
+                    ) : null}
+                </h3>
                 <div className='rounded'>
                     <DataTable
                         className=''
@@ -111,12 +117,60 @@ export default function StockCard({ stockCategory }) {
     );
 }
 
+function resolveSearchMeta(data) {
+    if (!Array.isArray(data) || !data.length) return null;
+
+    const firstEntryWithSearchMode = data.find((entry) => {
+        const mode = entry?.searchMode || entry?.SearchMode;
+        return typeof mode === "string" && mode.length > 0;
+    });
+
+    if (!firstEntryWithSearchMode) return null;
+
+    return {
+        mode: (firstEntryWithSearchMode.searchMode || firstEntryWithSearchMode.SearchMode || "")
+            .toLowerCase()
+            .trim(),
+        query: firstEntryWithSearchMode.query || firstEntryWithSearchMode.Query || "",
+        exactText:
+            firstEntryWithSearchMode.exactText || firstEntryWithSearchMode.ExactText || "",
+    };
+}
+
+function buildCardHeader(stockCategory, searchMeta, t) {
+    const fallbackLabel = t(stockCategory);
+    if (!searchMeta) return { label: fallbackLabel, mode: null };
+
+    if (searchMeta.mode === "exact") {
+        return {
+            label: searchMeta.exactText || searchMeta.query || fallbackLabel,
+            mode: t("exact_mode", "exact"),
+        };
+    }
+
+    if (searchMeta.mode === "contains") {
+        const containsLabel = searchMeta.query
+            ? `${fallbackLabel}: "${searchMeta.query}"`
+            : searchMeta.exactText || fallbackLabel;
+
+        return {
+            label: containsLabel,
+            mode: t("contains_mode", "contains"),
+        };
+    }
+
+    return {
+        label: searchMeta.query || searchMeta.exactText || fallbackLabel,
+        mode: searchMeta.mode,
+    };
+}
+
 function DataTransform(stockCategory, data, t) {
     if (!data) return null;
     switch (stockCategory) {
         case "protectors":
             return data
-                .filter((entry) => entry.title.includes("PROTEKTOR"))
+                .filter((entry) => entry?.title?.includes("PROTEKTOR"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -148,7 +202,7 @@ function DataTransform(stockCategory, data, t) {
                 );
         case "spirals":
             return data
-                .filter((entry) => entry.title.includes("SPIRALA"))
+                .filter((entry) => entry?.title?.includes("SPIRALA"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -183,7 +237,7 @@ function DataTransform(stockCategory, data, t) {
 
         case "clips":
             return data
-                .filter((entry) => entry.title.includes("SPONKA SESTAV"))
+                .filter((entry) => entry?.title?.includes("SPONKA SESTAV"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -247,7 +301,7 @@ function DataTransform(stockCategory, data, t) {
                 );
         case "rings":
             return data
-                .filter((entry) => entry.title.includes("OBROČ"))
+                .filter((entry) => entry?.title?.includes("OBROČ"))
                 .reduce(
                     (acc, cur) => {
                         const { title, code, stock, plan, difference } = cur;
@@ -277,7 +331,7 @@ function DataTransform(stockCategory, data, t) {
                 );
         case "fireclays":
             return data
-                .filter((entry) => entry.title.includes("EGO"))
+                .filter((entry) => entry?.title?.includes("EGO"))
                 .reduce(
                     (acc, cur) => {
                         const { title, furnace, stock, plan, difference, differenceFurnace } = cur;
