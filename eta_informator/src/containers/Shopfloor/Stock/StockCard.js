@@ -30,9 +30,7 @@ const conditionalRowStyles = [
 
 export default function StockCard({ stockCategory }) {
     const { t } = useTranslation("shopfloor");
-    const { data, isLoading, isError, status } = DataSource[stockCategory]();
-    const searchMeta = resolveSearchMeta(data);
-    const cardHeader = buildCardHeader(stockCategory, searchMeta, t);
+    const { data } = DataSource[stockCategory]();
 
     const columns = [
         {
