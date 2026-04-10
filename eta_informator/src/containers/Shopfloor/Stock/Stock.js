@@ -125,11 +125,13 @@ export default function Stock({ selectedUnit, ...props }) {
                 </Row>
             )}
 
-            <Row className='gy-4 pb-4'>
-                {categories.map((category) => (
-                    <StockCard key={category} stockCategory={category} />
-                ))}
-            </Row>
+            {newestByTerm.length === 0 ? (
+                <Row className='gy-4 pb-4'>
+                    {categories.map((category) => (
+                        <StockCard key={category} stockCategory={category} />
+                    ))}
+                </Row>
+            ) : null}
         </Container>
     );
 }
