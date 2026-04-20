@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card, Col, Container, Row } from "react-bootstrap";
+import { Button, Card, Col, Container, Form, Modal, Row, Spinner } from "react-bootstrap";
+import { FiClock } from "react-icons/fi";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { useTranslation } from "react-i18next";
 import DataTable from "react-data-table-component";
+import "chart.js/auto";
+import { Line } from "react-chartjs-2";
 import { translateUnit } from "../../../utils/utils";
 import StockCard from "./StockCard";
 import { useLastSync } from "../../../data/ReactQuery";
@@ -30,16 +33,31 @@ export default function Stock({ selectedUnit, ...props }) {
         }
 
         const werks = selectedUnit?.werks || "1061";
-        const url = `${
-            process.env.REACT_APP_INFORMATORSAP
-        }/api/stock/snapshots/latest?werks=${encodeURIComponent(werks)}&unitId=${encodeURIComponent(
+        const url = buildStockSnapshotsUrl({
+            werks,
             unitId,
-        )}`;
+            latestPerTerm: true,
+        });
 
         console.log("[Zaloga API] request url", url);
         fetch(url)
             .then((response) => {
                 if (!response.ok) {
+                    if (response.status === 404 || response.status === 400) {
+                        const fallbackUrl = `${
+                            process.env.REACT_APP_INFORMATORSAP
+                        }/api/stock/snapshots/latest?werks=${encodeURIComponent(
+                            werks,
+                        )}&unitId=${encodeURIComponent(unitId)}`;
+                        return fetch(fallbackUrl).then((fallbackResponse) => {
+                            if (!fallbackResponse.ok) {
+                                throw new Error(
+                                    `Fallback request failed with status ${fallbackResponse.status}`,
+                                );
+                            }
+                            return fallbackResponse.json();
+                        });
+                    }
                     throw new Error(`Request failed with status ${response.status}`);
                 }
                 return response.json();
@@ -99,7 +117,7 @@ export default function Stock({ selectedUnit, ...props }) {
                     <div>{t("last_updated")}:</div>
                     <div>
                         {latestRetrievedAtUtc
-                            ? dayjs.utc(latestRetrievedAtUtc).format("LLL")
+                            ? dayjs.utc(latestRetrievedAtUtc).local().format("LLL")
                             : lastSync.isSuccess && dayjs(lastSync.data[0].date).format("LLL")}
                     </div>
                 </div>
@@ -118,6 +136,7 @@ export default function Stock({ selectedUnit, ...props }) {
                                 entry?.Query
                             }
                             entry={entry}
+                            selectedUnit={selectedUnit}
                         />
                     ))}
                 </Row>
@@ -150,8 +169,9 @@ export default function Stock({ selectedUnit, ...props }) {
     );
 }
 
-function SnapshotCard({ entry }) {
+function SnapshotCard({ entry, selectedUnit }) {
     const { t } = useTranslation("shopfloor");
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
     const query = entry?.Query || entry?.query || "";
     const exactText = entry?.ExactText || entry?.exactText || "";
     const searchMode = (entry?.SearchMode || entry?.searchMode || "").toLowerCase();
@@ -198,19 +218,264 @@ function SnapshotCard({ entry }) {
                 style={{ background: "linear-gradient(30deg, #8cc5ff, #d9eeff)" }}
             >
                 <h3 className='mb-2'>
-                    {title}
-                    {translatedSearchMode ? (
-                        <span className='ms-2 fs-6 fw-normal text-muted'>
-                            ({translatedSearchMode})
-                        </span>
-                    ) : null}
+                    <div className='d-flex align-items-start justify-content-between gap-2'>
+                        <div>
+                            {title}
+                            {translatedSearchMode ? (
+                                <span className='ms-2 fs-6 fw-normal text-muted'>
+                                    ({translatedSearchMode})
+                                </span>
+                            ) : null}
+                        </div>
+                        <Button
+                            variant='outline-dark'
+                            size='sm'
+                            title={t("history", "History")}
+                            onClick={() => setShowHistoryModal(true)}
+                        >
+                            <FiClock />
+                        </Button>
+                    </div>
                 </h3>
                 <div className='rounded'>
                     <DataTable columns={columns} data={[row]} noHeader dense />
                 </div>
             </Card>
+            <SnapshotHistoryModal
+                show={showHistoryModal}
+                onHide={() => setShowHistoryModal(false)}
+                entry={entry}
+                selectedUnit={selectedUnit}
+                title={title}
+            />
         </Col>
     );
+}
+
+function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title }) {
+    const { t } = useTranslation("shopfloor");
+    const [year, setYear] = useState(dayjs().year());
+    const [month, setMonth] = useState(dayjs().month() + 1);
+    const [historyData, setHistoryData] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        if (!show) return;
+        const unitId = selectedUnit?.unitId;
+        if (!unitId) return;
+
+        const parsedYear = Number(year);
+        const parsedMonth = Number(month);
+        if (
+            !Number.isInteger(parsedYear) ||
+            !Number.isInteger(parsedMonth) ||
+            parsedMonth < 1 ||
+            parsedMonth > 12
+        ) {
+            setError(t("invalid_month_year", "Enter a valid month and year."));
+            setHistoryData([]);
+            return;
+        }
+
+        const monthStart = dayjs.utc(`${parsedYear}-${String(parsedMonth).padStart(2, "0")}-01`);
+        const monthEnd = monthStart.endOf("month");
+        const werks = selectedUnit?.werks || "1061";
+        const termId = entry?.TermId || entry?.termId;
+        const query = entry?.Query || entry?.query;
+        const exactText = entry?.ExactText || entry?.exactText;
+        const searchMode = entry?.SearchMode || entry?.searchMode;
+
+        const url = buildStockSnapshotsUrl({
+            werks,
+            unitId,
+            latestPerTerm: false,
+            from: monthStart.toISOString(),
+            to: monthEnd.toISOString(),
+            termId,
+            query,
+            exactText,
+            searchMode,
+        });
+
+        setIsLoading(true);
+        setError("");
+        fetch(url)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((result) => {
+                setHistoryData(Array.isArray(result) ? result : []);
+            })
+            .catch((fetchError) => {
+                console.error("[Zaloga API] history request failed", fetchError);
+                setError(t("history_load_failed", "Unable to load history data."));
+                setHistoryData([]);
+            })
+            .finally(() => setIsLoading(false));
+    }, [show, month, year, selectedUnit?.unitId, selectedUnit?.werks, entry, t]);
+
+    const dailyLatest = useMemo(() => getLatestSnapshotPerDay(historyData), [historyData]);
+
+    const chartData = useMemo(() => {
+        return {
+            labels: dailyLatest.map((item) => dayjs.utc(item.timestamp).local().format("DD.MM")),
+            datasets: [
+                {
+                    label: t("stock", "Stock"),
+                    data: dailyLatest.map((item) => toNumeric(item?.Total ?? item?.total)),
+                    borderColor: "#0d6efd",
+                    backgroundColor: "rgba(13, 110, 253, 0.15)",
+                    tension: 0.3,
+                },
+                {
+                    label: t("plan", "Plan"),
+                    data: dailyLatest.map((item) =>
+                        toNumeric(item?.PlannedTotal ?? item?.plannedTotal),
+                    ),
+                    borderColor: "#198754",
+                    backgroundColor: "rgba(25, 135, 84, 0.15)",
+                    tension: 0.3,
+                },
+                {
+                    label: t("delivered", "Delivered"),
+                    data: dailyLatest.map((item) =>
+                        toNumeric(item?.DeliveredTotal ?? item?.deliveredTotal),
+                    ),
+                    borderColor: "#fd7e14",
+                    backgroundColor: "rgba(253, 126, 20, 0.15)",
+                    tension: 0.3,
+                },
+            ],
+        };
+    }, [dailyLatest, t]);
+
+    const chartOptions = {
+        maintainAspectRatio: false,
+        responsive: true,
+        plugins: {
+            legend: {
+                position: "bottom",
+            },
+        },
+    };
+
+    return (
+        <Modal show={show} onHide={onHide} size='xl' centered>
+            <Modal.Header closeButton>
+                <Modal.Title>{t("history", "History")}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <div className='fw-semibold mb-3'>{title}</div>
+                <Row className='g-3 mb-3'>
+                    <Col xs={12} md={6}>
+                        <Form.Group>
+                            <Form.Label>{t("year", "Year")}</Form.Label>
+                            <Form.Control
+                                type='number'
+                                value={year}
+                                min={2000}
+                                max={2100}
+                                onChange={(event) => setYear(event.target.value)}
+                            />
+                        </Form.Group>
+                    </Col>
+                    <Col xs={12} md={6}>
+                        <Form.Group>
+                            <Form.Label>{t("month", "Month")}</Form.Label>
+                            <Form.Control
+                                type='number'
+                                value={month}
+                                min={1}
+                                max={12}
+                                onChange={(event) => setMonth(event.target.value)}
+                            />
+                        </Form.Group>
+                    </Col>
+                </Row>
+
+                <Card className='shadow-sm border-0 p-3' style={{ minHeight: "380px" }}>
+                    {isLoading ? (
+                        <div className='d-flex align-items-center gap-2 py-5 justify-content-center'>
+                            <Spinner animation='border' size='sm' />
+                            <span>{t("loading", "Loading")}...</span>
+                        </div>
+                    ) : error ? (
+                        <div className='text-danger py-4'>{error}</div>
+                    ) : dailyLatest.length === 0 ? (
+                        <div className='text-muted py-4'>
+                            {t("no_data_for_period", "No data for the selected month.")}
+                        </div>
+                    ) : (
+                        <div style={{ height: "340px" }}>
+                            <Line data={chartData} options={chartOptions} />
+                        </div>
+                    )}
+                </Card>
+            </Modal.Body>
+        </Modal>
+    );
+}
+
+function buildStockSnapshotsUrl({
+    werks,
+    unitId,
+    latestPerTerm,
+    from,
+    to,
+    termId,
+    query,
+    exactText,
+    searchMode,
+}) {
+    const url = new URL(`${process.env.REACT_APP_INFORMATORSAP}/api/stock/snapshots`);
+    url.searchParams.set("werks", werks);
+    url.searchParams.set("unitId", unitId);
+    url.searchParams.set("latestPerTerm", String(Boolean(latestPerTerm)));
+
+    if (!latestPerTerm) {
+        if (from) url.searchParams.set("from", from);
+        if (to) url.searchParams.set("to", to);
+    }
+
+    if (termId) url.searchParams.set("termId", termId);
+    if (query) url.searchParams.set("query", query);
+    if (exactText) url.searchParams.set("exactText", exactText);
+    if (searchMode) url.searchParams.set("searchMode", searchMode);
+
+    return url.toString();
+}
+
+function getLatestSnapshotPerDay(entries) {
+    const perDay = {};
+
+    entries.forEach((entry) => {
+        const timestamp = entry?.RetrievedAtUtc || entry?.retrieved_at_utc;
+        if (!timestamp) return;
+        const dayKey = dayjs.utc(timestamp).format("YYYY-MM-DD");
+        const current = perDay[dayKey];
+
+        if (!current) {
+            perDay[dayKey] = { ...entry, timestamp };
+            return;
+        }
+
+        if (dayjs.utc(timestamp).isAfter(dayjs.utc(current.timestamp))) {
+            perDay[dayKey] = { ...entry, timestamp };
+        }
+    });
+
+    return Object.values(perDay).sort(
+        (a, b) => dayjs.utc(a.timestamp).valueOf() - dayjs.utc(b.timestamp).valueOf(),
+    );
+}
+
+function toNumeric(value) {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function formatValueWithUnit(value, unit) {
