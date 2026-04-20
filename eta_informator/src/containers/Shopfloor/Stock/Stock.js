@@ -43,6 +43,21 @@ export default function Stock({ selectedUnit, ...props }) {
         fetch(url)
             .then((response) => {
                 if (!response.ok) {
+                    if (response.status === 404 || response.status === 400) {
+                        const fallbackUrl = `${
+                            process.env.REACT_APP_INFORMATORSAP
+                        }/api/stock/snapshots/latest?werks=${encodeURIComponent(
+                            werks,
+                        )}&unitId=${encodeURIComponent(unitId)}`;
+                        return fetch(fallbackUrl).then((fallbackResponse) => {
+                            if (!fallbackResponse.ok) {
+                                throw new Error(
+                                    `Fallback request failed with status ${fallbackResponse.status}`,
+                                );
+                            }
+                            return fallbackResponse.json();
+                        });
+                    }
                     throw new Error(`Request failed with status ${response.status}`);
                 }
                 return response.json();
