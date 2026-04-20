@@ -109,6 +109,7 @@ export default function Stock({ selectedUnit, ...props }) {
             dayjs.utc(current).isAfter(dayjs.utc(latest)) ? current : latest,
         );
     }, [snapshotData]);
+
     const showOldStockCards = selectedUnit?.unitId === 2;
     return (
         <Container className='g-0'>
@@ -281,10 +282,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title }) {
         const monthStart = dayjs.utc(`${parsedYear}-${String(parsedMonth).padStart(2, "0")}-01`);
         const monthEnd = monthStart.endOf("month");
         const werks = selectedUnit?.werks || "1061";
-        const termId = entry?.TermId || entry?.termId;
-        const query = entry?.Query || entry?.query;
-        const exactText = entry?.ExactText || entry?.exactText;
-        const searchMode = entry?.SearchMode || entry?.searchMode;
+        const lgort = selectedUnit?.lgort || null;
 
         const url = buildStockSnapshotsUrl({
             werks,
@@ -292,10 +290,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title }) {
             latestPerTerm: false,
             from: monthStart.toISOString(),
             to: monthEnd.toISOString(),
-            termId,
-            query,
-            exactText,
-            searchMode,
+            lgort,
         });
 
         setIsLoading(true);
@@ -316,24 +311,37 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title }) {
                 setHistoryData([]);
             })
             .finally(() => setIsLoading(false));
-    }, [show, month, year, selectedUnit?.unitId, selectedUnit?.werks, entry, t]);
+    }, [show, month, year, selectedUnit?.unitId, selectedUnit?.werks, selectedUnit?.lgort, t]);
 
-    const dailyLatest = useMemo(() => getLatestSnapshotPerDay(historyData), [historyData]);
+    const termId = entry?.TermId || entry?.termId;
+    const termHistoryData = useMemo(() => {
+        const filtered = historyData.filter((row) => (row?.TermId || row?.termId) === termId);
+        return filtered.sort((a, b) => {
+            const aTs = dayjs.utc(a?.RetrievedAtUtc || a?.retrieved_at_utc).valueOf();
+            const bTs = dayjs.utc(b?.RetrievedAtUtc || b?.retrieved_at_utc).valueOf();
+            return aTs - bTs;
+        });
+    }, [historyData, termId]);
 
     const chartData = useMemo(() => {
         return {
-            labels: dailyLatest.map((item) => dayjs.utc(item.timestamp).local().format("DD.MM")),
+            labels: termHistoryData.map((item) =>
+                dayjs
+                    .utc(item?.RetrievedAtUtc || item?.retrieved_at_utc)
+                    .local()
+                    .format("DD.MM"),
+            ),
             datasets: [
                 {
                     label: t("stock", "Stock"),
-                    data: dailyLatest.map((item) => toNumeric(item?.Total ?? item?.total)),
+                    data: termHistoryData.map((item) => toNumeric(item?.Total ?? item?.total)),
                     borderColor: "#0d6efd",
                     backgroundColor: "rgba(13, 110, 253, 0.15)",
                     tension: 0.3,
                 },
                 {
                     label: t("plan", "Plan"),
-                    data: dailyLatest.map((item) =>
+                    data: termHistoryData.map((item) =>
                         toNumeric(item?.PlannedTotal ?? item?.plannedTotal),
                     ),
                     borderColor: "#198754",
@@ -342,7 +350,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title }) {
                 },
                 {
                     label: t("delivered", "Delivered"),
-                    data: dailyLatest.map((item) =>
+                    data: termHistoryData.map((item) =>
                         toNumeric(item?.DeliveredTotal ?? item?.deliveredTotal),
                     ),
                     borderColor: "#fd7e14",
@@ -351,7 +359,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title }) {
                 },
             ],
         };
-    }, [dailyLatest, t]);
+    }, [termHistoryData, t]);
 
     const chartOptions = {
         maintainAspectRatio: false,
@@ -405,7 +413,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title }) {
                         </div>
                     ) : error ? (
                         <div className='text-danger py-4'>{error}</div>
-                    ) : dailyLatest.length === 0 ? (
+                    ) : termHistoryData.length === 0 ? (
                         <div className='text-muted py-4'>
                             {t("no_data_for_period", "No data for the selected month.")}
                         </div>
@@ -420,17 +428,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title }) {
     );
 }
 
-function buildStockSnapshotsUrl({
-    werks,
-    unitId,
-    latestPerTerm,
-    from,
-    to,
-    termId,
-    query,
-    exactText,
-    searchMode,
-}) {
+function buildStockSnapshotsUrl({ werks, unitId, latestPerTerm, from, to, lgort }) {
     const url = new URL(`${process.env.REACT_APP_INFORMATORSAP}/api/stock/snapshots`);
     url.searchParams.set("werks", werks);
     url.searchParams.set("unitId", unitId);
@@ -441,36 +439,9 @@ function buildStockSnapshotsUrl({
         if (to) url.searchParams.set("to", to);
     }
 
-    if (termId) url.searchParams.set("termId", termId);
-    if (query) url.searchParams.set("query", query);
-    if (exactText) url.searchParams.set("exactText", exactText);
-    if (searchMode) url.searchParams.set("searchMode", searchMode);
+    if (lgort) url.searchParams.set("lgort", lgort);
 
     return url.toString();
-}
-
-function getLatestSnapshotPerDay(entries) {
-    const perDay = {};
-
-    entries.forEach((entry) => {
-        const timestamp = entry?.RetrievedAtUtc || entry?.retrieved_at_utc;
-        if (!timestamp) return;
-        const dayKey = dayjs.utc(timestamp).format("YYYY-MM-DD");
-        const current = perDay[dayKey];
-
-        if (!current) {
-            perDay[dayKey] = { ...entry, timestamp };
-            return;
-        }
-
-        if (dayjs.utc(timestamp).isAfter(dayjs.utc(current.timestamp))) {
-            perDay[dayKey] = { ...entry, timestamp };
-        }
-    });
-
-    return Object.values(perDay).sort(
-        (a, b) => dayjs.utc(a.timestamp).valueOf() - dayjs.utc(b.timestamp).valueOf(),
-    );
 }
 
 function toNumeric(value) {
