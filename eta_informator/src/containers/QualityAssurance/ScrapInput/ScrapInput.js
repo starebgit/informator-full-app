@@ -55,6 +55,8 @@ const toggleButtons = [
     { name: "shift_3", value: 3 },
 ];
 
+const limitedHistoryUsernames = new Set(["D1", "D2", "D3", "55.17"]);
+
 const numpadLayout = {
     default: ["1 2 3", "4 5 6", "7 8 9", "/ 0 .", "{bksp} {enter}"],
 };
@@ -91,6 +93,7 @@ function ScrapInput({ selectedSubunit, ...props }) {
     const { t } = useTranslation(["manual_input", "labels"]);
     const { state } = useContext(AuthContext);
     const history = useHistory();
+    const RECENT_PRODUCTS_KEY = "scrapInputRecentProducts";
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedShift, setSelectedShift] = useState(1);
     const [selectedMachine, setSelectedMachine] = useState(null);
@@ -103,17 +106,22 @@ function ScrapInput({ selectedSubunit, ...props }) {
         getFromLS("bookmarkedQALocation"),
     );
     const [materialComponentFields, setMaterialComponentFields] = useState([]);
-    const allowedDates = useMemo(
-        () =>
-            Array.from({ length: 31 }, (_, i) =>
-                dayjs().subtract(i, "day").startOf("day").toDate(),
-            ),
-        [],
-    );
+    const allowedDates = useMemo(() => {
+        const username = state?.user?.username;
+        const daysBack = limitedHistoryUsernames.has(username) ? 4 : 31;
+        return Array.from({ length: daysBack }, (_, i) =>
+            dayjs().subtract(i, "day").startOf("day").toDate(),
+        );
+    }, [state?.user?.username]);
     const [saveInfo, setSaveInfo] = useState({ show: false, variant: "success", text: "" });
     const [isSaving, setIsSaving] = useState(false);
 
     const [materialOptions, setMaterialOptions] = useState([]);
+    const [recentProductCodes, setRecentProductCodes] = useState(() => {
+        const stored = getFromLS(RECENT_PRODUCTS_KEY);
+        return Array.isArray(stored) ? stored.filter(Boolean).slice(0, 5) : [];
+    });
+    const [showRecentProductCodes, setShowRecentProductCodes] = useState(false);
     const [showHistory, setShowHistory] = useState(true);
     const [filteredDailyScraps, setFilteredDailyScraps] = useState([]);
     const { data: dailyMaterialInfos, isLoading: materialInfosLoading } = useQuery(
@@ -124,6 +132,7 @@ function ScrapInput({ selectedSubunit, ...props }) {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showLeaveModal, setShowLeaveModal] = useState(false);
     const [pendingNavigation, setPendingNavigation] = useState(null);
+    const [pendingSelection, setPendingSelection] = useState(null);
     const allowNavigationRef = useRef(false);
 
     const infoByCode = useMemo(() => {
@@ -246,6 +255,17 @@ function ScrapInput({ selectedSubunit, ...props }) {
             await allScraps.refetch();
 
             setHasUnsavedChanges(false);
+            const savedProductCode = getValues("productCode");
+            if (savedProductCode) {
+                setRecentProductCodes((prev) => {
+                    const next = [
+                        savedProductCode,
+                        ...prev.filter((code) => code && code !== savedProductCode),
+                    ].slice(0, 5);
+                    saveToLS(RECENT_PRODUCTS_KEY, next);
+                    return next;
+                });
+            }
 
             setSaveInfo({ show: true, variant: "success", text: "Shranjeno ✅" });
             window.setTimeout(() => setSaveInfo((p) => ({ ...p, show: false })), 2500);
@@ -310,6 +330,7 @@ function ScrapInput({ selectedSubunit, ...props }) {
             // if the click is outside the product-input box, close the drop-up
             if (product.current && !product.current.contains(e.target)) {
                 setMaterialOptions([]); // hide the menu
+                setShowRecentProductCodes(false);
             }
         }
 
@@ -318,6 +339,7 @@ function ScrapInput({ selectedSubunit, ...props }) {
     }, []);
 
     const selectedProduct = watch("productCode");
+    const productCodeField = register("productCode");
 
     //* Queries
     const flaws = useFlaws(
@@ -456,7 +478,89 @@ function ScrapInput({ selectedSubunit, ...props }) {
         },
     );
 
+    const discardUnsavedChanges = () => {
+        const resetGroup = (groups) => {
+            if (!groups || Array.isArray(groups)) return;
+
+            Object.values(groups).forEach((group) => {
+                const allFlaws = [...(group?.highlighted || []), ...(group?.nonHighlighted || [])];
+
+                allFlaws.forEach((flaw) => {
+                    if (!flaw?.name) return;
+                    setValue(flaw.name, flaw.scrap?.value ?? 0, { shouldDirty: false });
+                    setValue(`${flaw.name}__comment`, flaw.scrap?.comment || "", {
+                        shouldDirty: false,
+                    });
+                });
+            });
+        };
+
+        resetGroup(flawFields);
+        resetGroup(materialComponentFields);
+        setHasUnsavedChanges(false);
+    };
+
+    const applySelectionChange = (change) => {
+        if (!change) return;
+
+        if (change.type === "machine") {
+            setSelectedMachine(change.value);
+            return;
+        }
+
+        if (change.type === "date") {
+            setSelectedDate(change.value);
+            return;
+        }
+
+        if (change.type === "shift") {
+            setSelectedShift(change.value);
+            return;
+        }
+
+        if (change.type === "productCode") {
+            setValue("productCode", change.value);
+            if (change.meta?.skipOnce) {
+                skipOnce.current = true;
+            }
+            if (change.meta?.clearOptions) {
+                setMaterialOptions([]);
+            }
+            if (change.meta?.refetch) {
+                scraps.refetch();
+            }
+        }
+    };
+
+    const requestSelectionChange = (change) => {
+        if (!change) return;
+
+        if (change.type === "machine" && change.value === selectedMachine) return;
+        if (change.type === "date" && dayjs(change.value).isSame(dayjs(selectedDate), "day"))
+            return;
+        if (change.type === "shift" && change.value === selectedShift) return;
+        if (change.type === "productCode") {
+            const currentProduct = getValues("productCode") || "";
+            if ((change.value || "") === currentProduct) return;
+        }
+
+        if (!hasUnsavedChanges) {
+            applySelectionChange(change);
+            return;
+        }
+
+        setPendingSelection(change);
+        setShowLeaveModal(true);
+    };
+
     const continueNavigation = () => {
+        if (pendingSelection) {
+            applySelectionChange(pendingSelection);
+            setPendingSelection(null);
+            setShowLeaveModal(false);
+            return;
+        }
+
         if (!pendingNavigation) return;
 
         allowNavigationRef.current = true;
@@ -472,10 +576,11 @@ function ScrapInput({ selectedSubunit, ...props }) {
     const handleStayOnPage = () => {
         setShowLeaveModal(false);
         setPendingNavigation(null);
+        setPendingSelection(null);
     };
 
     const handleLeaveWithoutSaving = () => {
-        setHasUnsavedChanges(false);
+        discardUnsavedChanges();
         continueNavigation();
     };
 
@@ -497,6 +602,7 @@ function ScrapInput({ selectedSubunit, ...props }) {
         setAnchorRef(ref.current);
         setSelectedField(name);
         setIsOpen(true);
+        setShowRecentProductCodes(name === "productCode");
     };
 
     //Popper useEffect - close popper when clicked outside of it and update popper position
@@ -542,10 +648,13 @@ function ScrapInput({ selectedSubunit, ...props }) {
 
     //* Handler functions
     const handleChange = (input) => {
-        setValue(selectedField, input, { shouldDirty: true });
-        if (selectedField !== "productCode") {
-            markAsDirty();
+        if (selectedField === "productCode") {
+            requestSelectionChange({ type: "productCode", value: input });
+            return;
         }
+
+        setValue(selectedField, input, { shouldDirty: true });
+        markAsDirty();
     };
 
     const onKeyPress = (button) => {
@@ -558,11 +667,11 @@ function ScrapInput({ selectedSubunit, ...props }) {
     };
 
     const onShiftChangeHandler = (value) => {
-        setSelectedShift(value);
+        requestSelectionChange({ type: "shift", value });
     };
 
     const onMachineChangeHandler = (value) => {
-        setSelectedMachine(value);
+        requestSelectionChange({ type: "machine", value });
     };
 
     const setFlawFieldsHandler = (flaws) => {
@@ -701,7 +810,9 @@ function ScrapInput({ selectedSubunit, ...props }) {
                         <FormLabel>{t("date")}</FormLabel>
                         <DatePicker
                             selected={selectedDate}
-                            onSelect={(date) => setSelectedDate(date)}
+                            onSelect={(date) =>
+                                requestSelectionChange({ type: "date", value: date })
+                            }
                             dateFormat='PPP'
                             /*disabled={ ... }*/
                             maxDate={new Date()}
@@ -733,15 +844,32 @@ function ScrapInput({ selectedSubunit, ...props }) {
                             <InputGroup>
                                 <FormControl
                                     placeholder='Vnesi kodo ali vsaj 5 znakov za iskanje'
-                                    {...register("productCode")}
+                                    {...productCodeField}
+                                    value={selectedProduct || ""}
                                     type='string'
                                     autoComplete='off'
+                                    onChange={(e) => {
+                                        if (hasUnsavedChanges) {
+                                            requestSelectionChange({
+                                                type: "productCode",
+                                                value: e.target.value,
+                                            });
+                                            return;
+                                        }
+
+                                        productCodeField.onChange(e);
+                                    }}
                                 />
                                 <Button
                                     variant='outline-primary'
                                     className='border'
                                     style={{ borderRadius: "0 .25rem .25rem 0" }}
-                                    onClick={() => setValue("productCode", "")}
+                                    onClick={() =>
+                                        requestSelectionChange({
+                                            type: "productCode",
+                                            value: "",
+                                        })
+                                    }
                                 >
                                     Počisti
                                 </Button>
@@ -755,18 +883,55 @@ function ScrapInput({ selectedSubunit, ...props }) {
                                         <div
                                             key={index}
                                             className='dropdown-item'
-                                            onClick={() => {
-                                                setValue("productCode", item.Code);
-                                                setMaterialOptions([]);
-                                                skipOnce.current = true;
-                                                scraps.refetch();
-                                            }}
+                                            onClick={() =>
+                                                requestSelectionChange({
+                                                    type: "productCode",
+                                                    value: item.Code,
+                                                    meta: {
+                                                        clearOptions: true,
+                                                        skipOnce: true,
+                                                        refetch: true,
+                                                    },
+                                                })
+                                            }
                                         >
                                             {item.Code} – {item.Description}
                                         </div>
                                     ))}
                                 </div>
                             )}
+                            {materialOptions.length === 0 &&
+                                showRecentProductCodes &&
+                                !selectedProduct &&
+                                recentProductCodes.length > 0 && (
+                                    <div
+                                        className='dropdown-menu show dropdown-up'
+                                        style={{ maxHeight: "200px", overflowY: "auto" }}
+                                    >
+                                        <div className='dropdown-header'>Zadnji proizvodi</div>
+                                        {recentProductCodes.map((code, index) => (
+                                            <div
+                                                key={`${code}-${index}`}
+                                                className='dropdown-item'
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    requestSelectionChange({
+                                                        type: "productCode",
+                                                        value: code,
+                                                        meta: {
+                                                            clearOptions: true,
+                                                            skipOnce: true,
+                                                            refetch: true,
+                                                        },
+                                                    });
+                                                    setShowRecentProductCodes(false);
+                                                }}
+                                            >
+                                                {code}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                         </div>
                     </Col>
                     <Col xs={12} lg={8}>
@@ -877,7 +1042,12 @@ function ScrapInput({ selectedSubunit, ...props }) {
                                                 key={index}
                                                 variant='outline-primary'
                                                 className='mb-2 btn-sm d-block text-start'
-                                                onClick={() => setValue("productCode", code)}
+                                                onClick={() =>
+                                                    requestSelectionChange({
+                                                        type: "productCode",
+                                                        value: code,
+                                                    })
+                                                }
                                             >
                                                 <div className='d-flex flex-row align-items-center flex-wrap'>
                                                     <span className='fw-bold me-2'>{code}</span>
@@ -981,7 +1151,12 @@ function ScrapInput({ selectedSubunit, ...props }) {
                                                 key={index}
                                                 variant='outline-primary'
                                                 className='mb-2 btn-sm d-block text-start'
-                                                onClick={() => setValue("productCode", code)}
+                                                onClick={() =>
+                                                    requestSelectionChange({
+                                                        type: "productCode",
+                                                        value: code,
+                                                    })
+                                                }
                                             >
                                                 <div className='d-flex flex-row align-items-center flex-wrap'>
                                                     <span className='fw-bold me-2'>{code}</span>

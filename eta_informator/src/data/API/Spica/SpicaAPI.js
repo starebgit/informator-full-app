@@ -8,6 +8,10 @@ dayjs.extend(timezone);
 const transformExp = jsonata("${$string(`employeeId`):[eventId]}");
 // eslint-disable-next-line no-template-curly-in-string
 const transformRestExp = jsonata("${`date`:{$string(`employeeId`):[eventId]}}");
+const partialSickEvents = [54, 56, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90];
+const fullSickEvents = [37, 43, 52, 55, 60, 61, 62, 63, 64, 65, 70, 71, 76, 77, 78];
+const partialHourUseEvents = [10];
+const fullHourUseEvents = [26];
 //add a bool if the date is max , which will fetch all remaining days.
 export async function getEmyployeeEvents(employees, date, endDate = false) {
     // If endDate NOT is set we fetch events for single date
@@ -154,7 +158,79 @@ export async function getEvents(subunitId, startDate, endDate, foremans) {
             return results.flat();
         });
 
-        return dailyReports;
+        const splitAdjustments = await Promise.all(
+            mergedDailyStaff.map(async (cur) => {
+                const { startDate, endDate, staff } = cur;
+                const events = await spicaClient.service("events").find({
+                    query: {
+                        employeeId: { $in: staff },
+                        dateTime: {
+                            $gte: dayjs(startDate).startOf("day").format("YYYY-MM-DD HH:mm:ss.SSS"),
+                            $lt: dayjs(endDate).endOf("day").format("YYYY-MM-DD HH:mm:ss.SSS"),
+                        },
+                        eventId: { $gt: 0 },
+                    },
+                });
+
+                const byDateEmployee = events.reduce((acc, event) => {
+                    const date = dayjs(event.dateTime).format("YYYY-MM-DD");
+                    if (!acc[date]) acc[date] = {};
+                    if (!acc[date][event.employeeId]) acc[date][event.employeeId] = [];
+                    acc[date][event.employeeId].push(event.eventId);
+                    return acc;
+                }, {});
+
+                return Object.entries(byDateEmployee).reduce((acc, [date, employeeEvents]) => {
+                    const daySplit = Object.values(employeeEvents).reduce(
+                        (counts, employeeEventIds) => {
+                            if (
+                                employeeEventIds.some((eventId) =>
+                                    partialSickEvents.includes(eventId),
+                                )
+                            )
+                                counts.partialSick += 1;
+                            if (
+                                employeeEventIds.some((eventId) => fullSickEvents.includes(eventId))
+                            )
+                                counts.sick += 1;
+                            if (
+                                employeeEventIds.some((eventId) =>
+                                    partialHourUseEvents.includes(eventId),
+                                )
+                            )
+                                counts.partialHourUse += 1;
+                            if (
+                                employeeEventIds.some((eventId) =>
+                                    fullHourUseEvents.includes(eventId),
+                                )
+                            )
+                                counts.hourUse += 1;
+                            return counts;
+                        },
+                        { sick: 0, partialSick: 0, hourUse: 0, partialHourUse: 0 },
+                    );
+                    acc[date] = daySplit;
+                    return acc;
+                }, {});
+            }),
+        ).then((entries) => entries.reduce((acc, cur) => ({ ...acc, ...cur }), {}));
+
+        return dailyReports.map((day) => {
+            const splitDay = splitAdjustments[day.date] || {
+                sick: 0,
+                partialSick: 0,
+                hourUse: 0,
+                partialHourUse: 0,
+            };
+
+            return {
+                ...day,
+                sick: splitDay.sick,
+                partialSick: splitDay.partialSick,
+                hourUse: splitDay.hourUse,
+                partialHourUse: splitDay.partialHourUse,
+            };
+        });
     });
 }
 

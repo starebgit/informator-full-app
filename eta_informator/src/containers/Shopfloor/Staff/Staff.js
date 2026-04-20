@@ -171,7 +171,15 @@ function Staff({ selectedUnit, selectedMonth, ...props }) {
                 hoverOffset: 25,
             },
         ],
-        labels: [t("use_of_hours"), t("partial_use_of_hours"), t("sick"), t("partial_sick"), t("higher_force"), t("leave"), t("special_leave")],
+        labels: [
+            t("use_of_hours"),
+            t("partial_use_of_hours"),
+            t("sick"),
+            t("partial_sick"),
+            t("higher_force"),
+            t("leave"),
+            t("special_leave"),
+        ],
     };
 
     const categoryData = {
@@ -500,37 +508,53 @@ function Staff({ selectedUnit, selectedMonth, ...props }) {
                                                                 <div className='shadow-sm px-2 py-1 align-items-center rounded bg-secondary text-white px-4'>
                                                                     <Badge
                                                                         text={t("use_of_hours")}
-                                                                        value={safeNumber(yesterday?.hourUse)}
+                                                                        value={safeNumber(
+                                                                            yesterday?.hourUse,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
                                                                         text={t("leave")}
-                                                                        value={safeNumber(yesterday?.leave)}
+                                                                        value={safeNumber(
+                                                                            yesterday?.leave,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
                                                                         text={t("higher_force")}
-                                                                        value={safeNumber(yesterday?.higherForce)}
+                                                                        value={safeNumber(
+                                                                            yesterday?.higherForce,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
                                                                         text={t("sick")}
-                                                                        value={safeNumber(yesterday?.sick)}
+                                                                        value={safeNumber(
+                                                                            yesterday?.sick,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
                                                                         text={t("partial_sick")}
-                                                                        value={safeNumber(yesterday?.partialSick)}
+                                                                        value={safeNumber(
+                                                                            yesterday?.partialSick,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
-                                                                        text={t("partial_use_of_hours")}
-                                                                        value={safeNumber(yesterday?.partialHourUse)}
+                                                                        text={t(
+                                                                            "partial_use_of_hours",
+                                                                        )}
+                                                                        value={safeNumber(
+                                                                            yesterday?.partialHourUse,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
                                                                         text={t("special_leave")}
-                                                                        value={safeNumber(yesterday?.quarantine)}
+                                                                        value={safeNumber(
+                                                                            yesterday?.quarantine,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
@@ -547,12 +571,24 @@ function Staff({ selectedUnit, selectedMonth, ...props }) {
                                                                             </span>
                                                                         }
                                                                         value={
-                                                                            safeNumber(yesterday?.quarantine) +
-                                                                            safeNumber(yesterday?.sick) +
-                                                                            safeNumber(yesterday?.higherForce) +
-                                                                            safeNumber(yesterday?.leave) +
-                                                                            safeNumber(yesterday?.hourUse) +
-                                                                            safeNumber(yesterday?.partialSick) +
+                                                                            safeNumber(
+                                                                                yesterday?.quarantine,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                yesterday?.sick,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                yesterday?.higherForce,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                yesterday?.leave,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                yesterday?.hourUse,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                yesterday?.partialSick,
+                                                                            ) +
                                                                             safeNumber(
                                                                                 yesterday?.partialHourUse,
                                                                             )
@@ -578,37 +614,53 @@ function Staff({ selectedUnit, selectedMonth, ...props }) {
                                                                 >
                                                                     <Badge
                                                                         text={t("use_of_hours")}
-                                                                        value={safeNumber(today?.hourUse)}
+                                                                        value={safeNumber(
+                                                                            today?.hourUse,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
                                                                         text={t("leave")}
-                                                                        value={safeNumber(today?.leave)}
+                                                                        value={safeNumber(
+                                                                            today?.leave,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
                                                                         text={t("higher_force")}
-                                                                        value={safeNumber(today?.higherForce)}
+                                                                        value={safeNumber(
+                                                                            today?.higherForce,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
                                                                         text={t("sick")}
-                                                                        value={safeNumber(today?.sick)}
+                                                                        value={safeNumber(
+                                                                            today?.sick,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
                                                                         text={t("partial_sick")}
-                                                                        value={safeNumber(today?.partialSick)}
+                                                                        value={safeNumber(
+                                                                            today?.partialSick,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
-                                                                        text={t("partial_use_of_hours")}
-                                                                        value={safeNumber(today?.partialHourUse)}
+                                                                        text={t(
+                                                                            "partial_use_of_hours",
+                                                                        )}
+                                                                        value={safeNumber(
+                                                                            today?.partialHourUse,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
                                                                         text={t("special_leave")}
-                                                                        value={safeNumber(today?.quarantine)}
+                                                                        value={safeNumber(
+                                                                            today?.quarantine,
+                                                                        )}
                                                                         plan={today?.plan}
                                                                     />
                                                                     <Badge
@@ -625,13 +677,27 @@ function Staff({ selectedUnit, selectedMonth, ...props }) {
                                                                             </span>
                                                                         }
                                                                         value={
-                                                                            safeNumber(today?.quarantine) +
-                                                                            safeNumber(today?.sick) +
-                                                                            safeNumber(today?.higherForce) +
-                                                                            safeNumber(today?.leave) +
-                                                                            safeNumber(today?.hourUse) +
-                                                                            safeNumber(today?.partialSick) +
-                                                                            safeNumber(today?.partialHourUse)
+                                                                            safeNumber(
+                                                                                today?.quarantine,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                today?.sick,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                today?.higherForce,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                today?.leave,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                today?.hourUse,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                today?.partialSick,
+                                                                            ) +
+                                                                            safeNumber(
+                                                                                today?.partialHourUse,
+                                                                            )
                                                                         }
                                                                         plan={today?.plan}
                                                                     />

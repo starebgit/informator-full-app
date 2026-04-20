@@ -14,6 +14,12 @@ function PlanResults(props) {
 
     const trimOrder = (n) => String(n || "").replace(/^0+/, "") || "0";
 
+    const shortenText = (text, maxLength = 25) => {
+        const normalized = String(text || "").trim();
+        if (normalized.length <= maxLength) return normalized;
+        return `${normalized.slice(0, maxLength)}...`;
+    };
+
     const copyText = async (text) => {
         try {
             if (window.isSecureContext && navigator.clipboard?.writeText) {
@@ -105,9 +111,11 @@ function PlanResults(props) {
                     Material: x.Material,
                     StdKolicina: x.StdKolicina,
                     Donos: x.Donos,
+                    Razlika: (+x.StdKolicina || 0) - (+x.Donos || 0),
                     EM: translateUnit(x.EM),
                     KratkiTekstMateriala: x.KratkiTekstMateriala,
                     NajZag: x.NajZag,
+                    LongText: x.LongText,
                 }));
                 setRows(mapped);
                 setLoading(false);
@@ -157,14 +165,16 @@ function PlanResults(props) {
                                 <th>{t("documentation:material")}</th>
                                 <th>{t("documentation:planned_quantity")}</th>
                                 <th>{t("documentation:yield")}</th>
+                                <th>Razlika</th>
                                 <th>{t("documentation:unit")}</th>
                                 <th>{t("documentation:material_description")}</th>
+                                <th>Dolgi tekst</th>
                             </tr>
                         </thead>
                         <tbody>
                             {rows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className='text-center text-muted'>
+                                    <td colSpan={9} className='text-center text-muted'>
                                         {t("documentation:no_results_for_criteria")}
                                     </td>
                                 </tr>
@@ -206,12 +216,16 @@ function PlanResults(props) {
                                         <td>{r.Material}</td>
                                         <td>{r.StdKolicina}</td>
                                         <td>{r.Donos}</td>
+                                        <td>{r.Razlika}</td>
                                         <td>{r.EM}</td>
                                         <td
                                             className='text-truncate'
                                             title={r.KratkiTekstMateriala}
                                         >
                                             {r.KratkiTekstMateriala}
+                                        </td>
+                                        <td title={r.LongText || ""}>
+                                            {shortenText(r.LongText || "", 25)}
                                         </td>
                                     </tr>
                                 ))

@@ -568,21 +568,18 @@ function Shopfloor() {
                             )}
                         </PrivateRoute>
                     )}
-                    {(selectedUnit.unitId == 2 ||
-                        selectedUnit.keyword == "livarna_obdelovalnica") && (
-                        <PrivateRoute path={`${path}/:unit/stock`}>
-                            {selectedUnit ? (
-                                <Stock selectedUnit={selectedUnit} />
-                            ) : (
-                                <div
-                                    className='d-flex align-items-center justify-content-center'
-                                    style={{ minHeight: "600px" }}
-                                >
-                                    {t("missing_unit_data")}
-                                </div>
-                            )}
-                        </PrivateRoute>
-                    )}
+                    <PrivateRoute path={`${path}/:unit/stock`}>
+                        {selectedUnit ? (
+                            <Stock selectedUnit={selectedUnit} />
+                        ) : (
+                            <div
+                                className='d-flex align-items-center justify-content-center'
+                                style={{ minHeight: "600px" }}
+                            >
+                                {t("missing_unit_data")}
+                            </div>
+                        )}
+                    </PrivateRoute>
                     <PrivateRoute path={`${path}/:unit/staff`}>
                         <Staff
                             selectedUnit={selectedUnit}
@@ -643,7 +640,14 @@ function Shopfloor() {
                         </PrivateRoute>
                     )}
                     <PrivateRoute path={`${path}/:unit/lean`}>
-                        <Lean selectedUnit={selectedUnit} selectedMonth={dayjs(selectedMonth)} />
+                        <Lean
+                            selectedUnit={selectedUnit}
+                            selectedMonth={dayjs(selectedMonth)}
+                            layouts={userLayout[selectedUnit?.subunitId]}
+                            initLayoutsHandler={initLayoutsHandler}
+                            setTempLayoutsHandler={setTempLayoutsHandler}
+                            saveLayoutsHandler={saveLayoutsHandler}
+                        />
                     </PrivateRoute>
                     <PrivateRoute path={`${path}/:unit/attachments`}>
                         <Attachments

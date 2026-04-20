@@ -76,6 +76,8 @@ const StyledExternalLink = styled.a`
     }
 `;
 
+const qaAllowedUsernames = new Set(["D1", "D2", "D3", "55.17"]);
+
 function Sidebar({ mobile, setShowSidebar, ...props }) {
     const [value, setValue] = useState(new Date());
     const { t } = useTranslation(["navigation", "labels"]);
@@ -187,17 +189,19 @@ function Sidebar({ mobile, setShowSidebar, ...props }) {
             <span>{t("guidelines")}</span>{" "}
         </StyledNavLink>
     );
-    const qaNav = checkRole(authContext.state.user, ["admin", "quality", "head_of_work_unit"]) && (
-        <StyledNavLink
-            style={{ marginTop: "auto" }}
-            to='/quality-assurance'
-            onClick={mobile ? () => setShowSidebar(false) : null}
-        >
-            {" "}
-            <FontAwesomeIcon icon='certificate' size='lg' pull='left' fixedWidth />{" "}
-            <span>{t("quality_service")}</span>{" "}
-        </StyledNavLink>
-    );
+    const qaNav =
+        checkRole(authContext.state.user, ["admin", "quality", "head_of_work_unit"]) ||
+        qaAllowedUsernames.has(authContext.state.user?.username) ? (
+            <StyledNavLink
+                style={{ marginTop: "auto" }}
+                to='/quality-assurance'
+                onClick={mobile ? () => setShowSidebar(false) : null}
+            >
+                {" "}
+                <FontAwesomeIcon icon='certificate' size='lg' pull='left' fixedWidth />{" "}
+                <span>{t("quality_service")}</span>{" "}
+            </StyledNavLink>
+        ) : null;
 
     const infopointNav = (
         <StyledNavLink

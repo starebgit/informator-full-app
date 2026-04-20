@@ -18,32 +18,38 @@ const StyledConfirmModal = styled(Modal)`
         border-radius: 18px;
         background: #f8f9fa;
     }
+
     .lean-graph-modal__title {
         display: flex;
         flex-direction: column;
         line-height: 1.2;
     }
+
     .lean-graph-modal__title-sub {
         font-size: 0.85em;
         color: var(--bs-secondary-color);
         font-weight: normal;
     }
+
     .modal-dialog.lean-graph-modal {
         max-width: 96vw;
         width: 96vw;
     }
+
     .modal-dialog.lean-graph-modal .modal-content,
     .modal-dialog.lean-graph-modal .modal-header,
     .modal-dialog.lean-graph-modal .modal-body,
     .modal-dialog.lean-graph-modal .modal-footer {
         background: #fff;
     }
+
     .modal-header {
         border-bottom: none;
         border-radius: 18px 18px 0 0;
         background: #f8f9fa;
         padding-bottom: 0.5rem;
     }
+
     .modal-footer {
         border-top: none;
         border-radius: 0 0 18px 18px;
@@ -153,13 +159,16 @@ function toSnakeCase(str) {
 function renderCell(value, colKey) {
     if (value == null) return "";
     if (typeof value === "boolean") return value ? "Da" : "Ne";
+
     if (typeof value === "object") {
         if ("Name" in value) return value.Name;
         return JSON.stringify(value);
     }
+
     if ((/date/i.test(colKey) || /date/i.test(value)) && dayjs(value).isValid()) {
         return dayjs(value).format("DD.MM.YYYY");
     }
+
     return value.toString();
 }
 
@@ -190,6 +199,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
     const intervalDropdownRef = useRef(null);
     const statusDropdownRef = useRef(null);
     const locationDropdownRef = useRef(null);
+    const columnsDropdownRef = useRef(null);
 
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedFinding, setSelectedFinding] = useState(null);
@@ -206,25 +216,30 @@ function EaseTab({ selectedUnit, selectedMonth }) {
     const [selectedGraphLocation, setSelectedGraphLocation] = useState(null);
 
     useEffect(() => {
-        if (!showIntervalDropdown && !showStatusDropdown && !showLocationDropdown) return;
+        if (!showIntervalDropdown && !showStatusDropdown && !showLocationDropdown && !showList) {
+            return;
+        }
 
         const onPointerDown = (event) => {
             const intervalEl = intervalDropdownRef.current;
             const statusEl = statusDropdownRef.current;
             const locationEl = locationDropdownRef.current;
+            const columnsEl = columnsDropdownRef.current;
 
             if (showIntervalDropdown && intervalEl && intervalEl.contains(event.target)) return;
             if (showStatusDropdown && statusEl && statusEl.contains(event.target)) return;
             if (showLocationDropdown && locationEl && locationEl.contains(event.target)) return;
+            if (showList && columnsEl && columnsEl.contains(event.target)) return;
 
             if (showIntervalDropdown) setShowIntervalDropdown(false);
             if (showStatusDropdown) setShowStatusDropdown(false);
             if (showLocationDropdown) setShowLocationDropdown(false);
+            if (showList) setShowList(false);
         };
 
         document.addEventListener("pointerdown", onPointerDown);
         return () => document.removeEventListener("pointerdown", onPointerDown);
-    }, [showIntervalDropdown, showStatusDropdown, showLocationDropdown]);
+    }, [showIntervalDropdown, showStatusDropdown, showLocationDropdown, showList]);
 
     useEffect(() => {
         setSelectedYear(selectedMonth ? dayjs(selectedMonth).toDate() : new Date());
@@ -320,6 +335,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
 
     async function handleCloseFinding(finding) {
         setClosingFindingId(finding.Id);
+
         try {
             const response = await fetch(
                 (process.env.REACT_APP_EASE || "") + `/api/findings/${finding.Id}/close`,
@@ -331,6 +347,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
             );
 
             let errorText = "";
+
             if (!response.ok) {
                 errorText = await response.text();
 
@@ -369,6 +386,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
     const getLocationValue = (item) => {
         if (!item) return null;
         let loc = item.Location;
+
         if (typeof item.Location === "object" && item.Location !== null) {
             loc =
                 item.Location.Name ||
@@ -376,11 +394,13 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                 item.Location.value ||
                 item.Location.label;
         }
+
         return loc;
     };
 
     const matchesSelectedLocation = (item, location) => {
         if (!location) return true;
+
         const loc = getLocationValue(item);
 
         if (location.value === "Livarna") {
@@ -442,8 +462,8 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                 "Tunelske peči",
                 "VF",
                 "Diastat linija",
-                "Avtomatsko polnjenje",
-                "Ročno polnjenje",
+                "Avtomatsko polnenje",
+                "Ročno polnenje",
                 "Lasersko varjenje SECA",
                 "Peči za staranje",
                 "Montažne linije",
@@ -487,6 +507,8 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                 "CNC obdelava",
                 "Brusilnica",
                 "Žična erozija",
+                "VRS notranje površine",
+                "VRS zunanje površine",
             ];
             return izdelavaPolizdelkovLocations.includes(loc);
         }
@@ -591,7 +613,9 @@ function EaseTab({ selectedUnit, selectedMonth }) {
 
     const formatMonthName = (date) => {
         if (!date) return "";
+
         const locale = String(i18n?.language || "sl").replace("_", "-");
+
         try {
             const month = new Intl.DateTimeFormat(locale, { month: "long" }).format(date);
             return month ? month.charAt(0).toUpperCase() + month.slice(1) : "";
@@ -713,6 +737,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                   )}`
                 : formatMonthName(pointDate.toDate())
             : "";
+
         setGraphModalTitle(
             `${legendStatus || t("shopfloor:status")}${intervalLabel ? `\n${intervalLabel}` : ""}`,
         );
@@ -769,6 +794,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                   )}`
                 : formatMonthName(pointDate.toDate())
             : "";
+
         setGraphModalTitle(
             `${legendStatus || t("shopfloor:status")}${intervalLabel ? `\n${intervalLabel}` : ""}`,
         );
@@ -840,8 +866,10 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                         name: label,
                         selector: (row) => {
                             if (!row) return "";
+
                             const location = renderCell(row["Location"], "Location");
                             const site = renderCell(row["Site"], "Site");
+
                             if (location && site) return `${location} (${site})`;
                             if (location) return location;
                             if (site) return site;
@@ -868,16 +896,19 @@ function EaseTab({ selectedUnit, selectedMonth }) {
     const selectedYearValue = dayjs(selectedYear).year();
     const selectedMonthDate = selectedMonth ? dayjs(selectedMonth) : null;
     const hasSelectedMonth = Boolean(selectedMonthDate && selectedMonthDate.isValid());
+
     const graphPoints =
         graphInterval === "week"
             ? hasSelectedMonth
                 ? getWeekEndDatesForMonth(selectedMonthDate)
                 : getWeekStartDates(selectedYearValue)
             : getMonthStartDates(selectedYearValue);
+
     const graphTimeUnit = graphInterval === "week" ? "week" : "month";
     const graphTooltip = graphInterval === "week" ? "dd.MM.yyyy" : "MMMM";
     const graphDisplayFormats = graphInterval === "week" ? { week: "dd.MM" } : { month: "MMMM" };
     const graphTitleSuffix = graphInterval === "week" ? "tednih" : "mesecih";
+
     const graphTooltipTitle = (tooltipItems) => {
         const item = tooltipItems[0];
         if (item && item.label) {
@@ -903,7 +934,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                         }}
                     >
                         <Spinner animation='border' role='status' style={{ width: 48, height: 48 }}>
-                            <span className='visually-hidden'>Loading...</span>
+                            <span className='visually-hidden'>{t("data_is_loading")}</span>
                         </Spinner>
                     </div>
                 )}
@@ -931,7 +962,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                     style={{ whiteSpace: "nowrap" }}
                                     onClick={() => setShowLocationDropdown((v) => !v)}
                                 >
-                                    Lokacija
+                                    {t("location")}
                                 </button>
 
                                 {showLocationDropdown && (
@@ -985,14 +1016,14 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                                     setShowLocationDropdown(false);
                                                 }}
                                             >
-                                                Počisti
+                                                {t("clear")}
                                             </button>
 
                                             <button
                                                 className='btn btn-sm btn-primary'
                                                 onClick={() => setShowLocationDropdown(false)}
                                             >
-                                                Zapri
+                                                {t("close")}
                                             </button>
                                         </div>
                                     </div>
@@ -1010,7 +1041,8 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                 }}
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <label style={{ fontWeight: 600 }}>Prikaz:</label>
+                                    <label style={{ fontWeight: 600 }}>{t("view")}:</label>
+
                                     <button
                                         className={`btn btn-sm btn-${
                                             graphInterval === "month"
@@ -1019,15 +1051,16 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                         }`}
                                         onClick={() => setGraphInterval("month")}
                                     >
-                                        Mesečno
+                                        {t("monthly")}
                                     </button>
+
                                     <button
                                         className={`btn btn-sm btn-${
                                             graphInterval === "week" ? "primary" : "outline-primary"
                                         }`}
                                         onClick={() => setGraphInterval("week")}
                                     >
-                                        Tedensko
+                                        {t("weekly")}
                                     </button>
                                 </div>
                             </div>
@@ -1287,7 +1320,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                     }}
                                     onClick={() => setShowIntervalDropdown((v) => !v)}
                                 >
-                                    Časovni interval
+                                    {t("time_interval")}
                                 </button>
 
                                 {showIntervalDropdown && (
@@ -1312,7 +1345,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                                 gap: 8,
                                             }}
                                         >
-                                            <label style={{ minWidth: 30 }}>Od:</label>
+                                            <label style={{ minWidth: 30 }}>{t("from")}:</label>
                                             <input
                                                 type='date'
                                                 value={dateFilter.start || ""}
@@ -1338,7 +1371,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                                 marginTop: 8,
                                             }}
                                         >
-                                            <label style={{ minWidth: 30 }}>Do:</label>
+                                            <label style={{ minWidth: 30 }}>{t("to")}:</label>
                                             <input
                                                 type='date'
                                                 value={dateFilter.end || ""}
@@ -1371,14 +1404,14 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                                     setShowIntervalDropdown(false);
                                                 }}
                                             >
-                                                Počisti
+                                                {t("clear")}
                                             </button>
 
                                             <button
                                                 className='btn btn-sm btn-primary'
                                                 onClick={() => setShowIntervalDropdown(false)}
                                             >
-                                                Zapri
+                                                {t("close")}
                                             </button>
                                         </div>
                                     </div>
@@ -1391,7 +1424,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                     style={{ whiteSpace: "nowrap" }}
                                     onClick={() => setShowStatusDropdown((v) => !v)}
                                 >
-                                    Stanja
+                                    {t("statuses")}
                                 </button>
 
                                 {showStatusDropdown && (
@@ -1440,21 +1473,21 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                                     ])
                                                 }
                                             >
-                                                Privzeto
+                                                {t("default")}
                                             </button>
 
                                             <button
                                                 className='btn btn-sm btn-primary'
                                                 onClick={() => setShowStatusDropdown(false)}
                                             >
-                                                Zapri
+                                                {t("close")}
                                             </button>
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            <div style={{ position: "relative" }}>
+                            <div ref={columnsDropdownRef} style={{ position: "relative" }}>
                                 <FontAwesomeIcon
                                     icon='bars'
                                     size='lg'
@@ -1493,9 +1526,11 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                         {allColumns.map((colKey) => {
                                             const snakeKey = toSnakeCase(colKey);
                                             let label = t(`shopfloor:${snakeKey}`);
+
                                             if (label === `shopfloor:${snakeKey}`) {
                                                 label = t(`labels:${snakeKey}`);
                                             }
+
                                             if (label === `labels:${snakeKey}`) {
                                                 label = colKey;
                                             }
@@ -1711,6 +1746,7 @@ function EaseTab({ selectedUnit, selectedMonth }) {
                                                             audit?.Site,
                                                             "Site",
                                                         );
+
                                                         const locationWithSite =
                                                             location && site
                                                                 ? `${location} (${site})`

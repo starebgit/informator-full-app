@@ -58,41 +58,41 @@ function MachineGroupGoalCard({ machineGroup, data, clicked, ...props }) {
     const { t } = useTranslation("manual_input");
     const columns = useMemo(
         () => [
-            { name: "goalId", selector: "goalId", omit: true },
+            { name: "goalId", selector: (row) => row.goalId, omit: true },
             {
                 name: t("start_date"),
-                selector: "startDate",
+                selector: (row) => row.startDate,
                 format: (row, index) => {
                     return dayjs(row.startDate).format("LL");
                 },
             },
             {
                 name: t("end_date"),
-                selector: "endDate",
+                selector: (row) => row.endDate,
                 format: (row, index) => {
                     return dayjs(row.endDate).format("LL");
                 },
             },
             {
                 name: t("realization_goal"),
-                selector: "realizationGoal",
+                selector: (row) => row.realizationGoal,
             },
             {
                 name: t("quality_goal") + " %",
-                selector: "qualityGoal",
+                selector: (row) => row.qualityGoal,
             },
             {
                 name: t("oee_goal") + " %",
-                selector: "oeeGoal",
+                selector: (row) => row.oeeGoal,
             },
             {
                 name: t("created_by"),
-                selector: "userId",
+                selector: (row) => row.userId,
                 right: true,
             },
             {
                 name: t("edit"),
-                selector: "edit",
+                selector: (row) => row.edit,
                 right: true,
                 cell: (row) => (
                     <div className='d-flex'>

@@ -16,6 +16,8 @@ import {
     getMachinesAll,
     getReports,
     getOrders,
+    getAllAccidents,
+    getApprovers,
     getFlawLocations,
     getFlaws,
     getInputLocations,
@@ -23,7 +25,6 @@ import {
     getInputLocationMachines,
     getInputLocation,
     getPaginatedScraps,
-    getAllAccidents,
 } from "./API/Informator/InformatorAPI";
 import { getMachineGroups } from "./API/Informator/InformatorAPI";
 import { getCastingProgram, getFoundryForms } from "./API/Dreamreport/DreamreportAPI";
@@ -144,6 +145,10 @@ export function useCauses() {
 
 export function useFlawLocations(key = [], query = {}, options = {}) {
     return useQuery(["flawsLocations", ...key], () => getFlawLocations(query), { ...options });
+}
+
+export function useApprovers(options = {}) {
+    return useQuery(["approvers"], () => getApprovers(), { ...options });
 }
 
 export function useFlaws(

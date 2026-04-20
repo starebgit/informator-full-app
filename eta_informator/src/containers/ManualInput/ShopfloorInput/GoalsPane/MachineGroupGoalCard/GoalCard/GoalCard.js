@@ -15,23 +15,23 @@ const Item = styled(Col)``;
 const columns = [
     {
         name: "start_date",
-        selector: "startDate",
+        selector: (row) => row.startDate,
     },
     {
         name: "end_date",
-        selector: "endDate",
+        selector: (row) => row.endDate,
     },
     {
         name: "realization_goal",
-        selector: "realizationGoal",
+        selector: (row) => row.realizationGoal,
     },
     {
         name: "quality_goal",
-        selector: "qualityGoal",
+        selector: (row) => row.qualityGoal,
     },
     {
         name: "dodal",
-        selector: "userId",
+        selector: (row) => row.userId,
     },
 ];
 

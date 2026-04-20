@@ -97,10 +97,10 @@ function GoalsPane({ clicked, ...props }) {
     );
     const columns = useMemo(
         () => [
-            { name: "goalId", selector: "goalId", omit: true },
+            { name: "goalId", selector: (row) => row.goalId, omit: true },
             {
                 name: t("start_date"),
-                selector: "startDate",
+                selector: (row) => row.startDate,
                 sortable: true,
                 format: (row, index) => {
                     return dayjs(row.startDate).format("LL");
@@ -108,7 +108,7 @@ function GoalsPane({ clicked, ...props }) {
             },
             {
                 name: t("end_date"),
-                selector: "endDate",
+                selector: (row) => row.endDate,
                 sortable: true,
                 format: (row, index) => {
                     return dayjs(row.endDate).format("LL");
@@ -116,24 +116,24 @@ function GoalsPane({ clicked, ...props }) {
             },
             {
                 name: t("realization_goal"),
-                selector: "realizationGoal",
+                selector: (row) => row.realizationGoal,
             },
             {
                 name: t("quality_goal") + " %",
-                selector: "qualityGoal",
+                selector: (row) => row.qualityGoal,
             },
             {
                 name: t("oee_goal") + " %",
-                selector: "oeeGoal",
+                selector: (row) => row.oeeGoal,
             },
             {
                 name: t("created_by"),
-                selector: "userId",
+                selector: (row) => row.userId,
                 right: true,
             },
             {
                 name: t("edit"),
-                selector: "edit",
+                selector: (row) => row.edit,
                 right: true,
                 cell: (row) => (
                     <div className='d-flex'>

@@ -30,7 +30,11 @@ export default function Stock({ selectedUnit, ...props }) {
         }
 
         const werks = selectedUnit?.werks || "1061";
-        const url = `${process.env.REACT_APP_INFORMATORSAP}/api/stock/snapshots/latest?werks=${encodeURIComponent(werks)}&unitId=${encodeURIComponent(unitId)}`;
+        const url = `${
+            process.env.REACT_APP_INFORMATORSAP
+        }/api/stock/snapshots/latest?werks=${encodeURIComponent(werks)}&unitId=${encodeURIComponent(
+            unitId,
+        )}`;
 
         console.log("[Zaloga API] request url", url);
         fetch(url)
@@ -87,7 +91,7 @@ export default function Stock({ selectedUnit, ...props }) {
             dayjs.utc(current).isAfter(dayjs.utc(latest)) ? current : latest,
         );
     }, [snapshotData]);
-
+    const showOldStockCards = selectedUnit?.unitId === 2;
     return (
         <Container className='g-0'>
             <Row className='gy-4 pb-4'>
@@ -125,13 +129,23 @@ export default function Stock({ selectedUnit, ...props }) {
                 </Row>
             )}
 
-            {newestByTerm.length === 0 ? (
-                <Row className='gy-4 pb-4'>
-                    {categories.map((category) => (
-                        <StockCard key={category} stockCategory={category} />
-                    ))}
-                </Row>
-            ) : null}
+            {showOldStockCards && (
+                <>
+                    <Row className='gy-4 pb-4'>
+                        <div className='d-flex gap-2'>
+                            <div>{t("last_updated")}:</div>
+                            <div>
+                                {lastSync.isSuccess && dayjs(lastSync.data[0].date).format("LLL")}
+                            </div>
+                        </div>
+                    </Row>
+                    <Row className='gy-4 pb-4'>
+                        {categories.map((category) => (
+                            <StockCard key={category} stockCategory={category} />
+                        ))}
+                    </Row>
+                </>
+            )}
         </Container>
     );
 }
@@ -141,12 +155,18 @@ function SnapshotCard({ entry }) {
     const query = entry?.Query || entry?.query || "";
     const exactText = entry?.ExactText || entry?.exactText || "";
     const searchMode = (entry?.SearchMode || entry?.searchMode || "").toLowerCase();
+    const translatedSearchMode =
+        searchMode === "exact"
+            ? t("exact_mode", "exact")
+            : searchMode === "contains"
+            ? t("contains_mode", "contains")
+            : searchMode;
     const title =
         searchMode === "exact"
             ? exactText || query || "-"
             : query
-              ? `"${query}"`
-              : exactText || "-";
+            ? `"${query}"`
+            : exactText || "-";
 
     const row = {
         stock: formatValueWithUnit(entry?.Total ?? entry?.total, entry?.Unit ?? entry?.unit),
@@ -179,8 +199,10 @@ function SnapshotCard({ entry }) {
             >
                 <h3 className='mb-2'>
                     {title}
-                    {searchMode ? (
-                        <span className='ms-2 fs-6 fw-normal text-muted'>({searchMode})</span>
+                    {translatedSearchMode ? (
+                        <span className='ms-2 fs-6 fw-normal text-muted'>
+                            ({translatedSearchMode})
+                        </span>
                     ) : null}
                 </h3>
                 <div className='rounded'>

@@ -30,7 +30,9 @@ const conditionalRowStyles = [
 
 export default function StockCard({ stockCategory }) {
     const { t } = useTranslation("shopfloor");
-    const { data } = DataSource[stockCategory]();
+    const { data, isLoading, isError, status } = DataSource[stockCategory]();
+    const searchMeta = resolveSearchMeta(data);
+    const cardHeader = buildCardHeader(stockCategory, searchMeta, t);
 
     const columns = [
         {
@@ -130,8 +132,7 @@ function resolveSearchMeta(data) {
             .toLowerCase()
             .trim(),
         query: firstEntryWithSearchMode.query || firstEntryWithSearchMode.Query || "",
-        exactText:
-            firstEntryWithSearchMode.exactText || firstEntryWithSearchMode.ExactText || "",
+        exactText: firstEntryWithSearchMode.exactText || firstEntryWithSearchMode.ExactText || "",
     };
 }
 

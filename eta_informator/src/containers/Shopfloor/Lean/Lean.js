@@ -7,6 +7,8 @@ import styled from "styled-components";
 import client from "../../../feathers/feathers";
 import CategoryPane from "../Attachments/CategoryPane";
 import EaseTab from "./EaseTab";
+import FiveSTab from "./5STab";
+import LPA from "./LPA";
 
 const StyledContainer = styled.div`
     margin-bottom: var(--s1);
@@ -40,21 +42,17 @@ const categories = [
     { key: "EASE", label: "EASE" },
 ];
 
-function Lean({ selectedUnit, selectedMonth }) {
+function Lean({
+    selectedUnit,
+    selectedMonth,
+    layouts,
+    initLayoutsHandler,
+    setTempLayoutsHandler,
+    saveLayoutsHandler,
+}) {
     const { t } = useTranslation(["shopfloor", "labels"]);
     const [selectedAttachment, setSelectedAttachment] = useState(null);
     const [activeTab, setActiveTab] = useState("5S");
-    const bottomScrollRef = useRef(null);
-
-    const scrollToBottom = () => {
-        if (selectedAttachment) {
-            bottomScrollRef.current?.scrollIntoView({ behavior: "smooth" });
-        } else {
-            setTimeout(() => {
-                bottomScrollRef.current?.scrollIntoView({ behavior: "smooth" });
-            }, 200);
-        }
-    };
 
     useEffect(() => {
         setSelectedAttachment(null);
@@ -77,7 +75,6 @@ function Lean({ selectedUnit, selectedMonth }) {
 
     const onClickHandler = (doc) => {
         setSelectedAttachment(doc);
-        scrollToBottom();
     };
 
     return (
@@ -127,6 +124,26 @@ function Lean({ selectedUnit, selectedMonth }) {
                                         selectedUnit={selectedUnit}
                                         selectedMonth={selectedMonth}
                                     />
+                                ) : category.key === "5S" ? (
+                                    <FiveSTab
+                                        attachments={attachments?.data}
+                                        selectedAttachment={selectedAttachment}
+                                        onClickHandler={onClickHandler}
+                                        selectedMonth={selectedMonth}
+                                        selectedUnit={selectedUnit}
+                                    />
+                                ) : category.key === "LPA" ? (
+                                    <LPA
+                                        attachments={attachments?.data}
+                                        selectedAttachment={selectedAttachment}
+                                        onClickHandler={onClickHandler}
+                                        selectedMonth={selectedMonth}
+                                        selectedUnit={selectedUnit}
+                                        layouts={layouts}
+                                        initLayoutsHandler={initLayoutsHandler}
+                                        setTempLayoutsHandler={setTempLayoutsHandler}
+                                        saveLayoutsHandler={saveLayoutsHandler}
+                                    />
                                 ) : (
                                     <Row>
                                         <Col>
@@ -162,7 +179,6 @@ function Lean({ selectedUnit, selectedMonth }) {
                                 )}
                             </Tab.Pane>
                         ))}
-                        <div ref={bottomScrollRef} />
                     </Tab.Content>
                 </StyledContainer>
             </Tab.Container>

@@ -14,7 +14,6 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { id } from "date-fns/locale";
 import {
     createGroup,
-    createInputLocationMachines,
     createInputLocationMachines2,
 } from "../../../../data/API/Informator/InformatorAPI";
 import { useTranslation } from "react-i18next";

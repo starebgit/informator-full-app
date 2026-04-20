@@ -120,6 +120,11 @@ function Line({ legend = true, ...props }) {
         const [accident] = [...indexes];
         props.setSelectedAccidents(accident);
     };
+    const displayFormats = {
+        day: "d",
+        ...(props.displayFormats || {}),
+    };
+
     let options = {
         animation: false,
         maintainAspectRatio: false,
@@ -182,9 +187,7 @@ function Line({ legend = true, ...props }) {
                     },
                 },
                 time: {
-                    displayFormats: {
-                        day: "d",
-                    },
+                    displayFormats,
                     parser:
                         props.timeUnit === "quarter"
                             ? "Q/yyyy"
