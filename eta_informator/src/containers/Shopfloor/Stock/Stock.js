@@ -24,6 +24,9 @@ export default function Stock({ selectedUnit, ...props }) {
     const { t } = useTranslation("labels");
     const { t: tShopfloor } = useTranslation("shopfloor");
     const [snapshotData, setSnapshotData] = useState([]);
+    const [goalsByTerm, setGoalsByTerm] = useState({});
+    const [goalsLoadingByTerm, setGoalsLoadingByTerm] = useState({});
+    const [goalsErrorByTerm, setGoalsErrorByTerm] = useState({});
 
     useEffect(() => {
         const unitId = selectedUnit?.unitId;
@@ -111,6 +114,84 @@ export default function Stock({ selectedUnit, ...props }) {
     }, [snapshotData]);
 
     const showOldStockCards = selectedUnit?.unitId === 2;
+
+    const loadGoalsForTerm = async (termId) => {
+        if (!termId) return [];
+
+        setGoalsLoadingByTerm((previous) => ({ ...previous, [termId]: true }));
+        setGoalsErrorByTerm((previous) => ({ ...previous, [termId]: "" }));
+        try {
+            const response = await fetch(
+                `${process.env.REACT_APP_INFORMATORSAP}/api/stock/goals?termId=${encodeURIComponent(
+                    termId,
+                )}`,
+            );
+            if (!response.ok) {
+                throw new Error(`Goals GET failed: ${response.status}`);
+            }
+            const result = await response.json();
+            const normalizedGoals = normalizeGoals(result);
+            setGoalsByTerm((previous) => ({ ...previous, [termId]: normalizedGoals }));
+            return normalizedGoals;
+        } catch (error) {
+            console.error("[Zaloga API] goals request failed", error);
+            setGoalsErrorByTerm((previous) => ({
+                ...previous,
+                [termId]: tShopfloor("history_load_failed", "Unable to load history data."),
+            }));
+            setGoalsByTerm((previous) => ({ ...previous, [termId]: [] }));
+            return [];
+        } finally {
+            setGoalsLoadingByTerm((previous) => ({ ...previous, [termId]: false }));
+        }
+    };
+
+    useEffect(() => {
+        const termIds = newestByTerm
+            .map((entry) => resolveTermId(entry))
+            .filter((termId) => termId !== null && termId !== undefined && termId !== "");
+
+        if (!termIds.length) return;
+        const uniqueTermIds = [...new Set(termIds)];
+        uniqueTermIds.forEach((termId) => {
+            loadGoalsForTerm(termId);
+        });
+    }, [newestByTerm]);
+
+    const handleSaveGoal = async (termId, goalConfig) => {
+        if (!termId) return { success: false };
+
+        setGoalsLoadingByTerm((previous) => ({ ...previous, [termId]: true }));
+        setGoalsErrorByTerm((previous) => ({ ...previous, [termId]: "" }));
+
+        try {
+            const response = await fetch(`${process.env.REACT_APP_INFORMATORSAP}/api/stock/goals`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    termId,
+                    goalValue: Number(goalConfig.value),
+                    validFrom: goalConfig.from,
+                    validTo: goalConfig.to,
+                }),
+            });
+            if (!response.ok) {
+                throw new Error(`Goals POST failed: ${response.status}`);
+            }
+
+            await loadGoalsForTerm(termId);
+            return { success: true };
+        } catch (error) {
+            console.error("[Zaloga API] goals save failed", error);
+            setGoalsErrorByTerm((previous) => ({
+                ...previous,
+                [termId]: tShopfloor("error", "Error"),
+            }));
+            setGoalsLoadingByTerm((previous) => ({ ...previous, [termId]: false }));
+            return { success: false };
+        }
+    };
+
     return (
         <Container className='g-0'>
             <Row className='gy-4 pb-4'>
@@ -138,6 +219,10 @@ export default function Stock({ selectedUnit, ...props }) {
                             }
                             entry={entry}
                             selectedUnit={selectedUnit}
+                            goals={goalsByTerm[resolveTermId(entry)] || []}
+                            goalsLoading={Boolean(goalsLoadingByTerm[resolveTermId(entry)])}
+                            goalsError={goalsErrorByTerm[resolveTermId(entry)]}
+                            onSaveGoal={handleSaveGoal}
                         />
                     ))}
                 </Row>
@@ -170,11 +255,17 @@ export default function Stock({ selectedUnit, ...props }) {
     );
 }
 
-function SnapshotCard({ entry, selectedUnit }) {
+function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, onSaveGoal }) {
     const { t } = useTranslation("shopfloor");
     const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [showGoalForm, setShowGoalForm] = useState(false);
+    const [goalValue, setGoalValue] = useState("");
+    const [goalFrom, setGoalFrom] = useState("");
+    const [goalTo, setGoalTo] = useState("");
+    const [saveError, setSaveError] = useState("");
     const query = entry?.Query || entry?.query || "";
     const exactText = entry?.ExactText || entry?.exactText || "";
+    const termId = resolveTermId(entry);
     const searchMode = (entry?.SearchMode || entry?.searchMode || "").toLowerCase();
     const translatedSearchMode =
         searchMode === "exact"
@@ -188,6 +279,8 @@ function SnapshotCard({ entry, selectedUnit }) {
             : query
             ? `"${query}"`
             : exactText || "-";
+
+    const activeGoal = useMemo(() => selectGoalForDate(goals, dayjs()), [goals]);
 
     const row = {
         stock: formatValueWithUnit(entry?.Total ?? entry?.total, entry?.Unit ?? entry?.unit),
@@ -203,6 +296,7 @@ function SnapshotCard({ entry, selectedUnit }) {
             entry?.PlannedMinusDeliveredTotal ?? entry?.plannedMinusDeliveredTotal,
             entry?.PlannedMinusDeliveredUnit ?? entry?.plannedMinusDeliveredUnit,
         ),
+        goal: formatGoalValue(activeGoal?.goalValue, entry?.Unit ?? entry?.unit),
     };
 
     const columns = [
@@ -210,7 +304,29 @@ function SnapshotCard({ entry, selectedUnit }) {
         { name: t("plan"), selector: (r) => r.plan },
         { name: t("delivered"), selector: (r) => r.delivered },
         { name: t("difference"), selector: (r) => r.difference },
+        { name: t("goal", "Goal"), selector: (r) => r.goal },
     ];
+
+    const handleGoalSave = async () => {
+        if (!goalValue || !goalFrom || !goalTo || dayjs(goalFrom).isAfter(dayjs(goalTo))) {
+            setSaveError(t("invalid_month_year", "Enter a valid month and year."));
+            return;
+        }
+        setSaveError("");
+        const saveResult = await onSaveGoal(termId, {
+            value: goalValue,
+            from: goalFrom,
+            to: goalTo,
+        });
+        if (saveResult.success) {
+            setShowGoalForm(false);
+            setGoalValue("");
+            setGoalFrom("");
+            setGoalTo("");
+        } else {
+            setSaveError(t("error", "Error"));
+        }
+    };
 
     return (
         <Col xs={12} sm={6}>
@@ -228,16 +344,65 @@ function SnapshotCard({ entry, selectedUnit }) {
                                 </span>
                             ) : null}
                         </div>
-                        <Button
-                            variant='outline-dark'
-                            size='sm'
-                            title={t("history", "History")}
-                            onClick={() => setShowHistoryModal(true)}
-                        >
-                            <FiClock />
-                        </Button>
+                        <div className='d-flex gap-2'>
+                            <Button
+                                variant='outline-dark'
+                                size='sm'
+                                title={t("add_goal", "Add goal")}
+                                onClick={() => setShowGoalForm((previous) => !previous)}
+                            >
+                                {t("add_goal", "Add goal")}
+                            </Button>
+                            <Button
+                                variant='outline-dark'
+                                size='sm'
+                                title={t("history", "History")}
+                                onClick={() => setShowHistoryModal(true)}
+                            >
+                                <FiClock />
+                            </Button>
+                        </div>
                     </div>
                 </h3>
+                {showGoalForm ? (
+                    <Row className='g-2 mb-3'>
+                        <Col xs={12} md={4}>
+                            <Form.Control
+                                type='number'
+                                placeholder={t("goal", "Goal")}
+                                value={goalValue}
+                                onChange={(event) => setGoalValue(event.target.value)}
+                            />
+                        </Col>
+                        <Col xs={12} md={3}>
+                            <Form.Control
+                                type='date'
+                                value={goalFrom}
+                                onChange={(event) => setGoalFrom(event.target.value)}
+                            />
+                        </Col>
+                        <Col xs={12} md={3}>
+                            <Form.Control
+                                type='date'
+                                value={goalTo}
+                                min={goalFrom || undefined}
+                                onChange={(event) => setGoalTo(event.target.value)}
+                            />
+                        </Col>
+                        <Col xs={12} md={2}>
+                            <Button
+                                variant='primary'
+                                className='w-100'
+                                onClick={handleGoalSave}
+                                disabled={!goalValue || !goalFrom || !goalTo || goalsLoading}
+                            >
+                                {goalsLoading ? t("loading", "Loading") : t("add", "Add")}
+                            </Button>
+                        </Col>
+                    </Row>
+                ) : null}
+                {saveError ? <div className='text-danger mb-2'>{saveError}</div> : null}
+                {goalsError ? <div className='text-danger mb-2'>{goalsError}</div> : null}
                 <div className='rounded'>
                     <DataTable columns={columns} data={[row]} noHeader dense />
                 </div>
@@ -248,12 +413,13 @@ function SnapshotCard({ entry, selectedUnit }) {
                 entry={entry}
                 selectedUnit={selectedUnit}
                 title={title}
+                goals={goals}
             />
         </Col>
     );
 }
 
-function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title }) {
+function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals }) {
     const { t } = useTranslation("shopfloor");
     const [year, setYear] = useState(dayjs().year());
     const [month, setMonth] = useState(dayjs().month() + 1);
@@ -357,9 +523,23 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title }) {
                     backgroundColor: "rgba(253, 126, 20, 0.15)",
                     tension: 0.3,
                 },
+                {
+                    label: t("goal", "Goal"),
+                    data: termHistoryData.map((item) => {
+                        const itemDate = dayjs
+                            .utc(item?.RetrievedAtUtc || item?.retrieved_at_utc)
+                            .local();
+                        const selectedGoal = selectGoalForDate(goals, itemDate);
+                        return selectedGoal ? toNumeric(selectedGoal.goalValue) : null;
+                    }),
+                    borderColor: "#6f42c1",
+                    borderDash: [8, 6],
+                    pointRadius: 0,
+                    spanGaps: false,
+                },
             ],
         };
-    }, [termHistoryData, t]);
+    }, [termHistoryData, t, goals]);
 
     const chartOptions = {
         maintainAspectRatio: false,
@@ -457,4 +637,39 @@ function formatValueWithUnit(value, unit) {
     const translatedUnit = unit ? translateUnit(unit) : "";
 
     return translatedUnit ? `${formattedValue} ${translatedUnit}` : formattedValue;
+}
+
+function formatGoalValue(value, unit) {
+    if (value === null || value === undefined || value === "") return "-";
+    const translatedUnit = unit ? translateUnit(unit) : "";
+    return translatedUnit ? `${value} ${translatedUnit}` : value;
+}
+
+function resolveTermId(entry) {
+    return entry?.TermId || entry?.termId || null;
+}
+
+function normalizeGoals(payload) {
+    if (!Array.isArray(payload)) return [];
+    return payload
+        .map((goal) => ({
+            id: goal?.Id || goal?.id,
+            termId: goal?.TermId || goal?.termId,
+            goalValue: goal?.GoalValue ?? goal?.goalValue,
+            validFrom: goal?.ValidFrom || goal?.validFrom,
+            validTo: goal?.ValidTo || goal?.validTo,
+            updatedAt: goal?.UpdatedAt || goal?.updatedAt || goal?.CreatedAt || goal?.createdAt,
+        }))
+        .filter((goal) => goal.termId !== null && goal.termId !== undefined && goal.termId !== "")
+        .sort((a, b) => dayjs(b.updatedAt).valueOf() - dayjs(a.updatedAt).valueOf());
+}
+
+function selectGoalForDate(goals, date) {
+    if (!Array.isArray(goals) || !goals.length) return null;
+    return goals.find((goal) => {
+        if (!goal?.validFrom || !goal?.validTo) return false;
+        const from = dayjs(goal.validFrom).startOf("day");
+        const to = dayjs(goal.validTo).endOf("day");
+        return !date.isBefore(from) && !date.isAfter(to);
+    });
 }
