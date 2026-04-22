@@ -306,8 +306,8 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
 
     const columns = [
         { name: t("stock"), selector: (r) => r.stock },
-        { name: t("plan"), selector: (r) => r.plan },
-        { name: t("delivered"), selector: (r) => r.delivered },
+        { name: t("plan"), selector: (r) => r.plan, omit: true, hidden: true },
+        { name: t("delivered"), selector: (r) => r.delivered, omit: true, hidden: true },
         { name: t("plan_minus_delivered"), selector: (r) => r.difference },
         { name: t("goal"), selector: (r) => r.goal },
         { name: t("goal_minus_delivered"), selector: (r) => r.goalMinusDelivered },
@@ -520,6 +520,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
                     borderColor: "#198754",
                     backgroundColor: "rgba(25, 135, 84, 0.15)",
                     tension: 0.3,
+                    hidden: true,
                 },
                 {
                     label: t("delivered"),
@@ -529,6 +530,21 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
                     borderColor: "#fd7e14",
                     backgroundColor: "rgba(253, 126, 20, 0.15)",
                     tension: 0.3,
+                    hidden: true,
+                },
+                {
+                    label: t("goal"),
+                    data: termHistoryData.map((item) => {
+                        const itemDate = dayjs
+                            .utc(item?.RetrievedAtUtc || item?.retrieved_at_utc)
+                            .local();
+                        const selectedGoal = selectGoalForDate(goals, itemDate);
+                        return selectedGoal ? toNumeric(selectedGoal.goalValue) : null;
+                    }),
+                    borderColor: "#6f42c1",
+                    borderDash: [8, 6],
+                    pointRadius: 0,
+                    spanGaps: false,
                 },
                 {
                     label: t("goal"),

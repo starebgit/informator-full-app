@@ -221,6 +221,7 @@
         "category": "Category",
         "stock": "Stock",
         "no_stock_terms_defined": "No stock terms are defined. Please create an IT request to add terms for your unit.",
+        "add_goal": "Add goal",
         "history": "History",
         "loading": "Loading",
         "history_load_failed": "Unable to load history data.",

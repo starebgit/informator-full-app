@@ -229,6 +229,7 @@
         "category": "Kategorie",
         "stock": "Lager",
         "no_stock_terms_defined": "Keine Lagerbegriffe sind definiert. Bitte erstellen Sie einen IT-Antrag, um Begriffe für Ihre Einheit hinzuzufügen.",
+        "add_goal": "Ziel hinzufügen",
         "history": "Verlauf",
         "loading": "Laden",
         "history_load_failed": "Verlaufsdaten konnten nicht geladen werden.",

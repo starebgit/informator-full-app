@@ -227,6 +227,7 @@
         "category": "Kategorija",
         "stock": "Zaloga",
         "no_stock_terms_defined": "Ni definiranih pojmov za zalogo. Prosimo oddajte IT zahtevek za dodajanje pojmov za vaš oddelek.",
+        "add_goal": "Dodaj cilj",
         "history": "Zgodovina",
         "loading": "Nalaganje",
         "history_load_failed": "Napaka pri nalaganju zgodovine.",
