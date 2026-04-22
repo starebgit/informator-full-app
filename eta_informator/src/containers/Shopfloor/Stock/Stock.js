@@ -137,7 +137,7 @@ export default function Stock({ selectedUnit, ...props }) {
             console.error("[Zaloga API] goals request failed", error);
             setGoalsErrorByTerm((previous) => ({
                 ...previous,
-                [termId]: tShopfloor("history_load_failed", "Unable to load history data."),
+                [termId]: tShopfloor("history_load_failed"),
             }));
             setGoalsByTerm((previous) => ({ ...previous, [termId]: [] }));
             return [];
@@ -185,7 +185,7 @@ export default function Stock({ selectedUnit, ...props }) {
             console.error("[Zaloga API] goals save failed", error);
             setGoalsErrorByTerm((previous) => ({
                 ...previous,
-                [termId]: tShopfloor("error", "Error"),
+                [termId]: tShopfloor("goal_save_failed"),
             }));
             setGoalsLoadingByTerm((previous) => ({ ...previous, [termId]: false }));
             return { success: false };
@@ -269,9 +269,9 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
     const searchMode = (entry?.SearchMode || entry?.searchMode || "").toLowerCase();
     const translatedSearchMode =
         searchMode === "exact"
-            ? t("exact_mode", "exact")
+            ? t("exact_mode")
             : searchMode === "contains"
-            ? t("contains_mode", "contains")
+            ? t("contains_mode")
             : searchMode;
     const title =
         searchMode === "exact"
@@ -297,19 +297,25 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
             entry?.PlannedMinusDeliveredUnit ?? entry?.plannedMinusDeliveredUnit,
         ),
         goal: formatGoalValue(activeGoal?.goalValue, entry?.Unit ?? entry?.unit),
+        goalMinusDelivered: formatGoalMinusDeliveredValue(
+            activeGoal?.goalValue,
+            entry?.DeliveredTotal ?? entry?.deliveredTotal,
+            entry?.Unit ?? entry?.unit,
+        ),
     };
 
     const columns = [
         { name: t("stock"), selector: (r) => r.stock },
         { name: t("plan"), selector: (r) => r.plan },
         { name: t("delivered"), selector: (r) => r.delivered },
-        { name: t("difference"), selector: (r) => r.difference },
-        { name: t("goal", "Goal"), selector: (r) => r.goal },
+        { name: t("plan_minus_delivered"), selector: (r) => r.difference },
+        { name: t("goal"), selector: (r) => r.goal },
+        { name: t("goal_minus_delivered"), selector: (r) => r.goalMinusDelivered },
     ];
 
     const handleGoalSave = async () => {
         if (!goalValue || !goalFrom || !goalTo || dayjs(goalFrom).isAfter(dayjs(goalTo))) {
-            setSaveError(t("invalid_month_year", "Enter a valid month and year."));
+            setSaveError(t("invalid_goal_range"));
             return;
         }
         setSaveError("");
@@ -324,7 +330,7 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
             setGoalFrom("");
             setGoalTo("");
         } else {
-            setSaveError(t("error", "Error"));
+            setSaveError(t("goal_save_failed"));
         }
     };
 
@@ -348,15 +354,15 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
                             <Button
                                 variant='outline-dark'
                                 size='sm'
-                                title={t("add_goal", "Add goal")}
+                                title={t("add_goal")}
                                 onClick={() => setShowGoalForm((previous) => !previous)}
                             >
-                                {t("add_goal", "Add goal")}
+                                {t("add_goal")}
                             </Button>
                             <Button
                                 variant='outline-dark'
                                 size='sm'
-                                title={t("history", "History")}
+                                title={t("history")}
                                 onClick={() => setShowHistoryModal(true)}
                             >
                                 <FiClock />
@@ -369,7 +375,7 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
                         <Col xs={12} md={4}>
                             <Form.Control
                                 type='number'
-                                placeholder={t("goal", "Goal")}
+                                placeholder={t("goal")}
                                 value={goalValue}
                                 onChange={(event) => setGoalValue(event.target.value)}
                             />
@@ -396,7 +402,7 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
                                 onClick={handleGoalSave}
                                 disabled={!goalValue || !goalFrom || !goalTo || goalsLoading}
                             >
-                                {goalsLoading ? t("loading", "Loading") : t("add", "Add")}
+                                {goalsLoading ? t("loading") : t("add")}
                             </Button>
                         </Col>
                     </Row>
@@ -421,6 +427,7 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
 
 function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals }) {
     const { t } = useTranslation("shopfloor");
+    const { t: tLabels } = useTranslation("labels");
     const [year, setYear] = useState(dayjs().year());
     const [month, setMonth] = useState(dayjs().month() + 1);
     const [historyData, setHistoryData] = useState([]);
@@ -440,7 +447,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
             parsedMonth < 1 ||
             parsedMonth > 12
         ) {
-            setError(t("invalid_month_year", "Enter a valid month and year."));
+            setError(t("invalid_month_year"));
             setHistoryData([]);
             return;
         }
@@ -473,7 +480,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
             })
             .catch((fetchError) => {
                 console.error("[Zaloga API] history request failed", fetchError);
-                setError(t("history_load_failed", "Unable to load history data."));
+                setError(t("history_load_failed"));
                 setHistoryData([]);
             })
             .finally(() => setIsLoading(false));
@@ -499,14 +506,14 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
             ),
             datasets: [
                 {
-                    label: t("stock", "Stock"),
+                    label: t("stock"),
                     data: termHistoryData.map((item) => toNumeric(item?.Total ?? item?.total)),
                     borderColor: "#0d6efd",
                     backgroundColor: "rgba(13, 110, 253, 0.15)",
                     tension: 0.3,
                 },
                 {
-                    label: t("plan", "Plan"),
+                    label: t("plan"),
                     data: termHistoryData.map((item) =>
                         toNumeric(item?.PlannedTotal ?? item?.plannedTotal),
                     ),
@@ -515,7 +522,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
                     tension: 0.3,
                 },
                 {
-                    label: t("delivered", "Delivered"),
+                    label: t("delivered"),
                     data: termHistoryData.map((item) =>
                         toNumeric(item?.DeliveredTotal ?? item?.deliveredTotal),
                     ),
@@ -524,7 +531,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
                     tension: 0.3,
                 },
                 {
-                    label: t("goal", "Goal"),
+                    label: t("goal"),
                     data: termHistoryData.map((item) => {
                         const itemDate = dayjs
                             .utc(item?.RetrievedAtUtc || item?.retrieved_at_utc)
@@ -554,14 +561,14 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
     return (
         <Modal show={show} onHide={onHide} size='xl' centered>
             <Modal.Header closeButton>
-                <Modal.Title>{t("history", "History")}</Modal.Title>
+                <Modal.Title>{t("history")}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
                 <div className='fw-semibold mb-3'>{title}</div>
                 <Row className='g-3 mb-3'>
                     <Col xs={12} md={6}>
                         <Form.Group>
-                            <Form.Label>{t("year", "Year")}</Form.Label>
+                            <Form.Label>{tLabels("year")}</Form.Label>
                             <Form.Control
                                 type='number'
                                 value={year}
@@ -573,7 +580,7 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
                     </Col>
                     <Col xs={12} md={6}>
                         <Form.Group>
-                            <Form.Label>{t("month", "Month")}</Form.Label>
+                            <Form.Label>{tLabels("month")}</Form.Label>
                             <Form.Control
                                 type='number'
                                 value={month}
@@ -589,14 +596,12 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
                     {isLoading ? (
                         <div className='d-flex align-items-center gap-2 py-5 justify-content-center'>
                             <Spinner animation='border' size='sm' />
-                            <span>{t("loading", "Loading")}...</span>
+                            <span>{t("loading")}...</span>
                         </div>
                     ) : error ? (
                         <div className='text-danger py-4'>{error}</div>
                     ) : termHistoryData.length === 0 ? (
-                        <div className='text-muted py-4'>
-                            {t("no_data_for_period", "No data for the selected month.")}
-                        </div>
+                        <div className='text-muted py-4'>{t("no_data_for_period")}</div>
                     ) : (
                         <div style={{ height: "340px" }}>
                             <Line data={chartData} options={chartOptions} />
@@ -643,6 +648,15 @@ function formatGoalValue(value, unit) {
     if (value === null || value === undefined || value === "") return "-";
     const translatedUnit = unit ? translateUnit(unit) : "";
     return translatedUnit ? `${value} ${translatedUnit}` : value;
+}
+
+function formatGoalMinusDeliveredValue(goalValue, deliveredValue, unit) {
+    if (goalValue === null || goalValue === undefined || goalValue === "") return "-";
+    const goalNumeric = Number(goalValue);
+    const deliveredNumeric = Number(deliveredValue ?? 0);
+    if (!Number.isFinite(goalNumeric) || !Number.isFinite(deliveredNumeric)) return "-";
+
+    return formatValueWithUnit(goalNumeric - deliveredNumeric, unit);
 }
 
 function resolveTermId(entry) {
