@@ -546,6 +546,20 @@ function SnapshotHistoryModal({ show, onHide, entry, selectedUnit, title, goals 
                     pointRadius: 0,
                     spanGaps: false,
                 },
+                {
+                    label: t("goal"),
+                    data: termHistoryData.map((item) => {
+                        const itemDate = dayjs
+                            .utc(item?.RetrievedAtUtc || item?.retrieved_at_utc)
+                            .local();
+                        const selectedGoal = selectGoalForDate(goals, itemDate);
+                        return selectedGoal ? toNumeric(selectedGoal.goalValue) : null;
+                    }),
+                    borderColor: "#6f42c1",
+                    borderDash: [8, 6],
+                    pointRadius: 0,
+                    spanGaps: false,
+                },
             ],
         };
     }, [termHistoryData, t, goals]);
