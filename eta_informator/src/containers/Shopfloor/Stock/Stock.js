@@ -280,7 +280,10 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
             : searchMode === "contains"
             ? t("contains_mode")
             : searchMode;
-    const title = buildSnapshotTermLabel(entry, translatedSearchMode);
+    const termDisplay = buildSnapshotTermDisplay(entry, translatedSearchMode);
+    const historyTitle = termDisplay.titleText
+        ? `${termDisplay.titleText} — ${termDisplay.termText}`
+        : termDisplay.termText;
 
     const activeGoal = useMemo(() => selectGoalForDate(goals, dayjs()), [goals]);
 
@@ -344,7 +347,17 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
             >
                 <h3 className='mb-2'>
                     <div className='d-flex align-items-start justify-content-between gap-2'>
-                        <div>{title}</div>
+                        <div>
+                            <div className='fw-semibold'>
+                                {termDisplay.titleText || termDisplay.termText}
+                            </div>
+                            <div className='text-muted' style={{ fontSize: "0.75rem", lineHeight: 1.2 }}>
+                                <span>{`*${termDisplay.termText}*`}</span>
+                                {termDisplay.modeText ? (
+                                    <span className='ms-2'>({termDisplay.modeText})</span>
+                                ) : null}
+                            </div>
+                        </div>
                         <div className='d-flex gap-2'>
                             <Button
                                 variant='outline-dark'
@@ -413,7 +426,7 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
                 onHide={() => setShowHistoryModal(false)}
                 entry={entry}
                 selectedUnit={selectedUnit}
-                title={title}
+                title={historyTitle}
                 goals={goals}
             />
         </Col>
@@ -709,14 +722,14 @@ function filterSnapshotRowsByUnitAndSubunit(rows, { selectedUnitId, selectedSubu
     });
 }
 
-function buildSnapshotTermLabel(entry, translatedSearchMode) {
+function buildSnapshotTermDisplay(entry, translatedSearchMode) {
     const title = entry?.Title || entry?.title || "";
     const query = entry?.Query || entry?.query || "";
     const exactText = entry?.ExactText || entry?.exactText || "";
     const searchMode = (entry?.SearchMode || entry?.searchMode || "").toLowerCase();
     const termText = searchMode === "exact" && exactText ? exactText : query || exactText || "-";
     const modeText = translatedSearchMode || searchMode || "-";
-    return title ? `${title} — ${termText} (${modeText})` : `${termText} (${modeText})`;
+    return { titleText: title, termText, modeText };
 }
 
 function normalizeGoals(payload) {
