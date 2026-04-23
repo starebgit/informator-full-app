@@ -75,10 +75,19 @@ export default function Stock({ selectedUnit, ...props }) {
             });
     }, [selectedUnit?.unitId, selectedUnit?.werks]);
 
+    const filteredSnapshotData = useMemo(
+        () =>
+            filterSnapshotRowsByUnitAndSubunit(snapshotData, {
+                selectedUnitId: selectedUnit?.unitId,
+                selectedSubunitId: selectedUnit?.subunitId,
+            }),
+        [snapshotData, selectedUnit?.unitId, selectedUnit?.subunitId],
+    );
+
     const newestByTerm = useMemo(() => {
         const map = {};
 
-        snapshotData.forEach((entry) => {
+        filteredSnapshotData.forEach((entry) => {
             const termId = entry?.TermId || entry?.termId;
             const query = entry?.Query || entry?.query || "";
             const exactText = entry?.ExactText || entry?.exactText || "";
@@ -100,10 +109,10 @@ export default function Stock({ selectedUnit, ...props }) {
         });
 
         return Object.values(map);
-    }, [snapshotData]);
+    }, [filteredSnapshotData]);
 
     const latestRetrievedAtUtc = useMemo(() => {
-        const allDates = snapshotData
+        const allDates = filteredSnapshotData
             .map((entry) => entry?.RetrievedAtUtc || entry?.retrieved_at_utc)
             .filter(Boolean);
 
@@ -111,7 +120,7 @@ export default function Stock({ selectedUnit, ...props }) {
         return allDates.reduce((latest, current) =>
             dayjs.utc(current).isAfter(dayjs.utc(latest)) ? current : latest,
         );
-    }, [snapshotData]);
+    }, [filteredSnapshotData]);
 
     const showOldStockCards = selectedUnit?.unitId === 2;
 
@@ -263,8 +272,6 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
     const [goalFrom, setGoalFrom] = useState("");
     const [goalTo, setGoalTo] = useState("");
     const [saveError, setSaveError] = useState("");
-    const query = entry?.Query || entry?.query || "";
-    const exactText = entry?.ExactText || entry?.exactText || "";
     const termId = resolveTermId(entry);
     const searchMode = (entry?.SearchMode || entry?.searchMode || "").toLowerCase();
     const translatedSearchMode =
@@ -273,12 +280,7 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
             : searchMode === "contains"
             ? t("contains_mode")
             : searchMode;
-    const title =
-        searchMode === "exact"
-            ? exactText || query || "-"
-            : query
-            ? `"${query}"`
-            : exactText || "-";
+    const title = buildSnapshotTermLabel(entry, translatedSearchMode);
 
     const activeGoal = useMemo(() => selectGoalForDate(goals, dayjs()), [goals]);
 
@@ -342,14 +344,7 @@ function SnapshotCard({ entry, selectedUnit, goals, goalsLoading, goalsError, on
             >
                 <h3 className='mb-2'>
                     <div className='d-flex align-items-start justify-content-between gap-2'>
-                        <div>
-                            {title}
-                            {translatedSearchMode ? (
-                                <span className='ms-2 fs-6 fw-normal text-muted'>
-                                    ({translatedSearchMode})
-                                </span>
-                            ) : null}
-                        </div>
+                        <div>{title}</div>
                         <div className='d-flex gap-2'>
                             <Button
                                 variant='outline-dark'
@@ -675,6 +670,53 @@ function formatGoalMinusDeliveredValue(goalValue, deliveredValue, unit) {
 
 function resolveTermId(entry) {
     return entry?.TermId || entry?.termId || null;
+}
+
+function normalizeSubunitId(value) {
+    if (value === null || value === undefined || value === "") return null;
+    return String(value);
+}
+
+function normalizeUnitId(value) {
+    if (value === null || value === undefined || value === "") return null;
+    return String(value);
+}
+
+function filterSnapshotRowsByUnitAndSubunit(rows, { selectedUnitId, selectedSubunitId } = {}) {
+    if (!Array.isArray(rows)) return [];
+
+    const normalizedSelectedUnitId = normalizeUnitId(selectedUnitId);
+    const normalizedSelectedSubunitId = normalizeSubunitId(selectedSubunitId);
+    const hasSelectedSubunit = normalizedSelectedSubunitId !== null;
+
+    return rows.filter((row) => {
+        const rowSubunitId = normalizeSubunitId(row?.SubunitId ?? row?.subunitId);
+        const rowUnitId = normalizeUnitId(row?.UnitId ?? row?.unitId);
+
+        if (!hasSelectedSubunit) {
+            if (normalizedSelectedUnitId === null) return true;
+            if (rowUnitId === null) return true;
+            return rowUnitId === normalizedSelectedUnitId;
+        }
+
+        if (rowSubunitId !== null) {
+            return rowSubunitId === normalizedSelectedSubunitId;
+        }
+
+        if (normalizedSelectedUnitId === null) return true;
+        if (rowUnitId === null) return true;
+        return rowUnitId === normalizedSelectedUnitId;
+    });
+}
+
+function buildSnapshotTermLabel(entry, translatedSearchMode) {
+    const title = entry?.Title || entry?.title || "";
+    const query = entry?.Query || entry?.query || "";
+    const exactText = entry?.ExactText || entry?.exactText || "";
+    const searchMode = (entry?.SearchMode || entry?.searchMode || "").toLowerCase();
+    const termText = searchMode === "exact" && exactText ? exactText : query || exactText || "-";
+    const modeText = translatedSearchMode || searchMode || "-";
+    return title ? `${title} — ${termText} (${modeText})` : `${termText} (${modeText})`;
 }
 
 function normalizeGoals(payload) {
